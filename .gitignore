@@ -7,3 +7,10 @@
 /captures
 .externalNativeBuild
 .cxx/
+
+# Spike artifacts and source zips (kept on disk, not tracked)
+/Phase0ButtonSpike.zip
+/Phase05LaunchToggle.zip
+/VoiceNoteCapture.zip
+/files.zip
+/Phase05LaunchToggle/
