@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Phase 0.5 Launch Toggle</string>
+    <string name="tap_fallback">Tap toggle (fallback)</string>
+    <string name="log_label">Event log (newest at bottom):</string>
+</resources>
