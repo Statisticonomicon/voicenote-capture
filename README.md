@@ -59,6 +59,12 @@ paired emulators. Built for Android Studio Panda 4.
   - res/ (layout, strings, theme, icon, wear_capabilities.xml), AndroidManifest.xml
 - tools/mock_endpoint.py - optional local mock server for network testing.
 - HOW_TO_RUN.md, USER_GUIDE.md.
+- docs/spikes/ - notes from earlier prototype spikes (superseded by Phase 1,
+  kept for history):
+  - PHASE0_README.md - Phase 0 button-event spike (proved hardware stem keys
+    do not reach the app as key events).
+  - PHASE05_HOW_TO_RUN.md - Phase 0.5 launch-toggle spike (the activation
+    workaround now used by the watch module).
 
 ## Troubleshooting
 - AGP upgrade prompt on first open: accept it. Missing wrapper jar: let Studio
