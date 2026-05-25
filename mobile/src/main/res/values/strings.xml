@@ -1,7 +1,7 @@
 <resources>
     <string name="app_name">Voice Note Companion</string>
-    <string name="endpoint_label">Processing endpoint URL</string>
-    <string name="endpoint_hint">https://your-server.tailnet/process</string>
+    <string name="endpoint_label">Processing endpoint base URL</string>
+    <string name="endpoint_hint">http://host:8457</string>
     <string name="token_label">Auth token (optional)</string>
     <string name="token_hint">Bearer token</string>
     <string name="mock_label">Mock mode (no network; canned transcript)</string>

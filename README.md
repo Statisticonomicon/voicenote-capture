@@ -13,8 +13,9 @@ Obsidian vault. Prototype (Phase 1).
   phone over the Wear Data Layer (ChannelClient). On-screen tap is the guaranteed
   fallback control.
 - **Phone (`:mobile`)**: receives the audio, saves a raw copy to a chosen folder,
-  then (via WorkManager, with retry) POSTs it to the configured endpoint and writes
-  the returned text as a Markdown note into the chosen Obsidian vault folder.
+  then (via WorkManager, with retry) uploads it to the configured endpoint base URL,
+  polls until transcription finishes, downloads the transcript, and writes it as a
+  Markdown note into the chosen Obsidian vault folder.
 - **Endpoint**: a black box returning text. Default is your home server over
   Tailscale (transcribe + summarise + any post-processing). A cloud option and an
   in-app mock mode are supported. Server internals are out of scope.
@@ -36,7 +37,7 @@ paired emulators. Built for Android Studio Panda 4.
 - Manual "import audio" test path on the phone.
 
 ## Configuration options (phone settings)
-- Processing endpoint URL; auth token (optional).
+- Processing endpoint base URL (e.g. http://host:8457); auth token (optional).
 - Mock mode (default ON).
 - Raw-audio folder (SAF); Obsidian vault folder (SAF).
 - (Watch) max-duration auto-stop: currently a constant, OFF by default; promoted

@@ -32,11 +32,19 @@ The phone app is **endpoint-agnostic and content-agnostic**: it sends an audio f
 - **Optional:** cloud ASR service (transcript only).
 
 ## Endpoint contract (defined by the app; the server implements it)
-- **Request:** HTTP POST, multipart audio file (+ optional metadata: timestamp, device id).
-- **Response (short jobs):** JSON `{ "text": "..." }`.
-- **Response (long jobs):** `{ "job_id": "..." }`, then GET poll → `{ "status": "...", "text": "..." }`.
-- **Auth:** configurable header/token. The Tailscale network is the primary security boundary.
-- **Cloud providers:** per-provider adapters (e.g. OpenAI Whisper / Groq / Deepgram) map to the same internal text result.
+The phone configures an endpoint **base URL** (e.g. `http://host:8457`) and uses a
+three-step **asynchronous** protocol (upload → poll → download):
+- **Upload:** `POST {base}/upload`, multipart audio in field `audio` (+ optional
+  metadata: timestamp, device id) → JSON `{ "job_id": "..." }`.
+- **Poll:** `GET {base}/status/{job_id}` → JSON `{ "status": "...", "error": "..." }`.
+  `status` progresses `queued` → `loading_model` → `transcribing` → terminal
+  `done` or `error` (the latter carries an `error` message).
+- **Download:** on `done`, `GET {base}/download/{job_id}?format=plain` → plain
+  transcript text, written verbatim into the vault.
+- **Auth:** optional `Authorization: Bearer <token>` on every call. The Tailscale
+  network is the primary security boundary.
+- **Cloud providers:** per-provider adapters (e.g. OpenAI Whisper / Groq / Deepgram)
+  map to the same upload/poll/download result.
 
 ## Data flow
 
@@ -81,5 +89,6 @@ flowchart LR
 ## Open items
 - Phase 2 (hardware): binding a physical OnePlus button to the app (Settings → button mapping).
 - Final audio format vs ASR compatibility.
-- Async job vs blocking request for short clips.
+- Async job + poll is now the single path (upload/poll/download); a fast
+  synchronous mode for very short clips could be added later if needed.
 - Core library desugaring to be enabled in Phase 1 (java.time / streams safety); pin desugar_jdk_libs via the version catalogue.
