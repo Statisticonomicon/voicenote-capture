@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-feature android:name="android.hardware.type.watch" />
+
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <!-- Android 14+: microphone FGS requires this dedicated permission in addition to FOREGROUND_SERVICE. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <!-- Android 13+: needed to post the mandatory foreground-service notification. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@android:style/Theme.DeviceDefault">
+
+        <meta-data android:name="com.google.android.wearable.standalone" android:value="true" />
+
+        <!--
+            singleTask launch-toggle (confirmed in Phase 0.5):
+            first launch (onCreate) starts; each re-launch (onNewIntent) toggles.
+            A hardware button assigned to this app drives these launches.
+        -->
+        <activity
+            android:name=".WearMainActivity"
+            android:launchMode="singleTask"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            Microphone foreground service. Type declared here AND matched by the
+            FOREGROUND_SERVICE_MICROPHONE permission above. Started only from the
+            foreground activity (the launch press), never from the background -
+            required because RECORD_AUDIO is a while-in-use permission.
+        -->
+        <service
+            android:name=".RecordingService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
+    </application>
+</manifest>
