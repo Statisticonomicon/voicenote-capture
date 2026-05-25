@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Phase 1 PROTOTYPE network security config.
+
+  Permits cleartext (http://) traffic ONLY to the home-server Tailscale node.
+  Every other destination keeps the platform default for targetSdk 34: cleartext
+  denied, HTTPS required. Tailscale is the security boundary for this host (see
+  ARCHITECTURE.md), so plain HTTP to it is acceptable here.
+
+  NOTE: this hostname is compiled into the APK. If the server's MagicDNS name
+  changes, update it here and rebuild; the runtime endpoint URL in Settings must
+  use this same host for cleartext to be allowed.
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">tailscale-node.tail05233a.ts.net</domain>
+    </domain-config>
+</network-security-config>
