@@ -87,7 +87,22 @@ Acceptance Test Section C (Watch alone, on emulator-5554) — 2026-05-26:
   action — it re-fires onNewIntent and toggles recording. To foreground
   without toggling, use KEYCODE_WAKEUP + `wm dismiss-keyguard` only.
   Net: Section C functionally PASS except the unverifiable-on-emulator haptic.
-  Section D (watch->phone link) NOT yet run (needs a paired phone emulator).
+
+Acceptance Test Section D (Watch->phone Data Layer link) — BLOCKED on
+emulators, DEFERRED to Phase 2 real hardware (2026-05-26). Not a failure.
+  Blockers found:
+  - Only AVD is Wear_OS_Large_Round; only installed system image is
+    android-36/android-wear-signed (Wear only). No phone/handset image, and
+    avdmanager/cmdline-tools not installed -> cannot create a phone AVD here.
+  - Decisive: Wear<->phone Data Layer pairing requires Android Studio's GUI
+    "Pair Wearable" assistant (emulator bridge + companion-app handshake);
+    no clean headless/adb path. Pairing a Wear emulator to the physical phone
+    is even more GUI-bound.
+  Rationale for deferring (not forcing): A+B+C pass, so capture (C),
+  transfer->text->vault (B), and network/server path (B) are each proven. D is
+  the one untested seam joining them, and it is the standard Wear Data Layer
+  pattern (ChannelClient + capability advert in the manifest) -> low risk.
+  Best proven on the real watch + physical phone in Phase 2.
 
 ====================================================================
 BUILD / TOOLCHAIN
@@ -129,8 +144,10 @@ OPEN ITEMS / NOTES
    job duration (~5 poll windows). Raise it, or switch to an error-only
    counter, if single jobs are expected to run longer.
 3. No auth token set; requests go unauthenticated (fine if server allows).
-4. Watch -> phone Data Layer path not exercised this session (tested via the
-   phone's manual "import audio" harness only).
+4. Watch -> phone Data Layer link (Acceptance Test Section D): BLOCKED on
+   emulators (no phone image/AVD; GUI-only Wear pairing) -> DEFERRED to Phase 2
+   real hardware. See the Section D entry above. A/B/C proven; D is the one
+   untested seam (standard ChannelClient pattern, low risk).
 
 (Resolved earlier: duplicate docs; local.properties untracked; stray zips +
 spike folder untracked; spike docs relocated; JDK 21 toolchain; async
