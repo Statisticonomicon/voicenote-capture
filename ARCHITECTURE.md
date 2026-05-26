@@ -1,50 +1,63 @@
-# Voice Note Capture — Architecture
+# VoiceNote Capture — Architecture
 
-**Status:** Prototype / living document.
+Status: Phase 1 prototype, phone pipeline validated end-to-end.
 
 ## Overview
 
-Three actors: a **Wear OS watch app**, an **Android phone companion app**, and a **processing endpoint** (the home server by default; a cloud transcript service optionally).
-
-The phone app is **endpoint-agnostic and content-agnostic**: it sends an audio file to one configured endpoint and writes whatever text comes back into the Obsidian vault. What the endpoint does internally is out of scope.
+Three actors: a **Wear OS watch app** (`:wear`), an **Android phone companion app**
+(`:mobile`), and a **transcription endpoint** (a separate faster-whisper Docker
+server, reached over Tailscale). The phone app is endpoint-agnostic and
+content-agnostic: it sends audio to one configured base URL and writes whatever text
+comes back into the Obsidian vault. What the endpoint does internally is out of
+scope for this repo.
 
 ## Components & responsibilities
 
-### Watch app (Wear OS)
-- Capture: single hardware button (assigned to the app) via the launch path —
-  first press starts, each subsequent press toggles stop/start
-  (onCreate / onNewIntent, launchMode=singleTask). On-screen tap = guaranteed
-  fallback. Confirmed in Phase 0.5 (Phase 0 disproved hardware key events).
-- Distinct haptics; screen off.
-- Record audio (mono 16 kHz AAC/m4a default) to local storage; optional max-duration auto-stop.
-- Transfer audio to the phone via Data Layer `ChannelClient`; then idle.
-- No network, no processing. Works phone-off (buffers locally, syncs on reconnect).
+### Watch app (`:wear`)
+- **Activation:** single hardware button via the launch path. `launchMode=singleTask`
+  means first launch hits `onCreate` (start recording); each re-launch hits
+  `onNewIntent` (toggle stop/start). A hardware button assigned to the app produces
+  these launches. On-screen tap is the guaranteed fallback. (Confirmed in spike
+  Phase 0.5; Phase 0 had disproved intercepting hardware key events directly.)
+- **Capture:** `RecordingService`, a microphone foreground service (mandatory on
+  Android 14+, declared type `microphone` + matching permission). Records mono
+  16 kHz AAC/m4a to local storage. Optional max-duration auto-stop (off by default).
+  Started only from the foreground activity — a mic FGS cannot start from the
+  background (RECORD_AUDIO is while-in-use).
+- **Haptics:** distinct start (single pulse) / stop (double pulse); screen stays off.
+- **Transfer:** `WearTransfer` sends the finished file to the phone via the Wear
+  Data Layer `ChannelClient`, locating the phone by a declared capability
+  (`voicenote_phone`). With no phone reachable it logs and leaves the file on the
+  watch.
 
-### Phone companion app (Android)
-- Receive audio over the Data Layer.
-- Persist raw audio immediately to a user-chosen folder (independent of processing; survives failures).
-- Upload queue (retry; async job + poll) → POST audio to the configured endpoint.
-- Write the returned text into the user-chosen Obsidian vault folder.
-- Holds all settings.
+### Phone app (`:mobile`)
+- **Receive:** `PhoneListenerService` (a `WearableListenerService`) receives the
+  audio over the Data Layer channel.
+- **Persist raw:** saves a copy to the user-chosen raw-audio folder (SAF), before
+  any upload, so nothing is lost on endpoint failure.
+- **Process:** `ProcessWorker` (a `CoroutineWorker`) runs the asynchronous
+  transcription protocol with retry/backoff, then writes the returned text into the
+  user-chosen Obsidian vault folder (SAF). Mock mode skips the network.
+- **Settings:** `SettingsActivity` + `Settings` — endpoint base URL, auth token,
+  mock mode, raw + vault folders (SAF tree URIs with persisted permission).
 
-### Processing endpoint (internals out of scope)
-- **Default:** home server, reached over Tailscale. Transcribes + does any post-processing (summary, action lists, to-do population, etc.) and returns text. Black box to the apps.
-- **Optional:** cloud ASR service (transcript only).
+### Transcription endpoint (separate project, out of scope here)
+- faster-whisper Flask server in Docker; reached over Tailscale at a stable MagicDNS
+  hostname. Transcribes and returns text. The app treats it as a black box.
 
-## Endpoint contract (defined by the app; the server implements it)
-The phone configures an endpoint **base URL** (e.g. `http://host:8457`) and uses a
-three-step **asynchronous** protocol (upload → poll → download):
-- **Upload:** `POST {base}/upload`, multipart audio in field `audio` (+ optional
-  metadata: timestamp, device id) → JSON `{ "job_id": "..." }`.
-- **Poll:** `GET {base}/status/{job_id}` → JSON `{ "status": "...", "error": "..." }`.
-  `status` progresses `queued` → `loading_model` → `transcribing` → terminal
-  `done` or `error` (the latter carries an `error` message).
-- **Download:** on `done`, `GET {base}/download/{job_id}?format=plain` → plain
-  transcript text, written verbatim into the vault.
-- **Auth:** optional `Authorization: Bearer <token>` on every call. The Tailscale
-  network is the primary security boundary.
-- **Cloud providers:** per-provider adapters (e.g. OpenAI Whisper / Groq / Deepgram)
-  map to the same upload/poll/download result.
+## Endpoint contract (asynchronous)
+
+```
+POST {base}/upload            multipart, field "audio"      -> { "job_id": "..." }
+GET  {base}/status/{job_id}   status in:
+                              queued | loading_model | transcribing | done | error
+GET  {base}/download/{job_id}?format=plain                  -> plain transcript text
+```
+
+- On `done`: download `format=plain`, write to vault.
+- On `error`: log the server's `error` field, clear the persisted job id, retry.
+- Auth: optional Bearer token header. The Tailscale network is the transport
+  security boundary.
 
 ## Data flow
 
@@ -54,41 +67,61 @@ flowchart LR
     A[Button press: launch] --> T{First launch?}
     T -->|yes onCreate| R[Start recording]
     T -->|re-launch onNewIntent| G[Toggle stop/start]
-    R --> X[Transfer via Data Layer]
+    R --> X[Transfer via Data Layer ChannelClient]
     G --> X
   end
-  X -->|Bluetooth / Wi-Fi| P[Receive audio]
+  X -->|Bluetooth / Wi-Fi over the tailnet| P[PhoneListenerService receives]
   subgraph Phone[Android companion app]
-    P --> S[Save raw to chosen folder]
-    S --> Q[Upload queue + retry]
-    Q --> C{Endpoint}
-    V[Write text to Obsidian vault folder]
+    P --> S[Save raw audio to chosen folder]
+    S --> Q[ProcessWorker: WorkManager queue + retry]
+    Q --> U[POST /upload -> job_id]
+    U --> Poll[poll /status until done]
+    Poll --> D[GET /download?format=plain]
+    D --> V[Write transcript note to Obsidian vault]
   end
-  C -->|over Tailscale| H[Home server: transcribe + summarise + actions]
-  C -->|opt-in| K[Cloud ASR: transcript only]
-  H -->|text response| V
-  K -->|text response| V
+  U -.over Tailscale.-> H[faster-whisper server in Docker]
+  Poll -.-> H
+  D -.-> H
 ```
 
+## Robustness
+
+- Per-call HTTP timeouts (connect/upload/status/download).
+- Job id persisted per audio path → a resumed worker continues polling instead of
+  re-uploading a large file.
+- Per-execution poll budget keeps each run under WorkManager's ~10 min cap; the job
+  resumes on the next execution.
+- `MAX_RUN_ATTEMPTS = 5` bounds runaway retries (note: it also bounds total job
+  duration to ~5 poll windows — raise it or switch to an error-only counter for very
+  long jobs).
+- Raw audio saved before upload, so an endpoint failure never loses the recording.
+
 ## Settings
-- **Activation:** single-button launch-toggle (fixed model); on-screen tap fallback always available.
-- **Max-duration auto-stop:** off (default); minutes when on.
-- **Audio:** format / sample rate (defaults: mono 16 kHz AAC).
-- **Raw-audio folder** (phone).
-- **Processing endpoint:** home server URL (default) | cloud provider + key.
-- **Endpoint auth token** (optional).
-- **Output Obsidian vault folder.**
+
+- Activation: single-button launch-toggle (fixed); on-screen tap fallback always
+  available.
+- Max-duration auto-stop (watch): off by default; minutes when on.
+- Audio: mono 16 kHz AAC default.
+- Raw-audio folder (phone, SAF).
+- Processing endpoint base URL; optional auth token.
+- Output Obsidian vault folder (phone, SAF).
 
 ## Security & privacy
-- Default path keeps audio within owned infrastructure: watch → phone → home server over Tailscale. Nothing leaves owned devices.
-- Cloud option is opt-in and transcript-only; flagged in the UI as the lower-privacy path.
+
+- Default path keeps audio within owned infrastructure: watch → phone → home server
+  over Tailscale. Nothing goes to a third-party cloud.
+- `targetSdk` 34 blocks cleartext HTTP by default; `network_security_config.xml`
+  permits it **only** for the Tailscale host (the tunnel provides transport
+  encryption). All other hosts remain HTTPS-only.
 
 ## Out of scope
-- Server-side processing internals; backups; cloud-synced folders; to-do population; Tailscale config (already deployed).
+
+- Transcription-server internals; summary/to-do extraction (intentionally not built
+  — the user does the summarising); backups; cloud-synced folders; Tailscale config.
 
 ## Open items
-- Phase 2 (hardware): binding a physical OnePlus button to the app (Settings → button mapping).
-- Final audio format vs ASR compatibility.
-- Async job + poll is now the single path (upload/poll/download); a fast
-  synchronous mode for very short clips could be added later if needed.
-- Core library desugaring to be enabled in Phase 1 (java.time / streams safety); pin desugar_jdk_libs via the version catalogue.
+
+- Watch→phone Data Layer transfer is implemented but untested on hardware (Phase 2).
+- Final audio format vs ASR compatibility (faster-whisper accepts the m4a fine in
+  testing).
+- Phase 2 hardware items: button binding, battery, haptic feel.
