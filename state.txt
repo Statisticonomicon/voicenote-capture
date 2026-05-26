@@ -10,7 +10,13 @@ Phase 1 prototype. Both Android modules (:wear, :mobile) build. The phone
 processing path now uses an asynchronous transcription protocol and has
 been VALIDATED END-TO-END on a real phone against the live home server:
 a manual audio import uploaded, polled, downloaded, and wrote the
-transcript into the Obsidian vault. Remaining open item is the git remote.
+transcript into the Obsidian vault.
+
+Acceptance test (PHASE1_ACCEPTANCE_TEST.md): A, B, C = PASS (C with the
+haptic-feel exception, an emulator limit); D = DEFERRED to Phase 2 (real
+hardware) — blocked by no phone image/AVD + GUI-only Wear pairing, not code.
+Full Phase-1 sign-off awaits D on the real watch. Remaining process item is
+the git remote (still open, undecided).
 
 ====================================================================
 GIT
