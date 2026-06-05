@@ -27,18 +27,42 @@ support grounds.
 
 1. **Install on the real watch.** Sideload `wear-debug.apk`; confirm capture works
    on hardware as it did on the emulator (record/stop, files saved).
+   *(2026-06-05: DONE on the original Pixel Watch.)*
 
 2. **Section D — watch → phone Data Layer transfer.** The one untested seam. Pair
    the watch with the phone, record on the watch, confirm `PhoneListenerService`
    receives the file via `ChannelClient` and `ProcessWorker` writes a note to the
    vault. This closes the end-to-end loop (capture → transfer → transcribe → vault)
    on real hardware.
+   *(2026-06-05: DONE — see `PHASE1_ACCEPTANCE_TEST.md` Section D. Caveat: GMS
+   Wearable on the Galaxy M33 silently ignored the manifest-declared
+   `voicenote_phone` capability advert; switched to dynamic
+   `CapabilityClient.addLocalCapability` in mobile `SettingsActivity.onCreate`.)*
 
-3. **Hardware-button binding.** Confirm the OEM Settings → button-mapping lets a
-   physical button launch the app (driving the launch-toggle: first press records,
-   each subsequent press toggles). This is OEM-specific and could only ever be
-   verified on the device. Fallback if a button can't be bound: the on-screen tap
-   control already works.
+3. **One-tap launch from the watch face — complication.** The original Pixel Watch
+   has a single user-facing button (the rotating crown), and the platform does not
+   let a third-party app bind it for arbitrary launch — so OEM-Settings button
+   mapping isn't available on this hardware. The replacement (and on this watch,
+   the canonical one-tap path) is a watch-face **complication**: a
+   `ComplicationDataSourceService` in `:wear` (`VoiceNoteComplicationService`) that
+   the user places on a complication slot of their preferred watch face. A single
+   tap on the complication launches `WearMainActivity`; under `singleTask`, that is
+   the same Activity-start path Phase 0.5 confirmed produces
+   onCreate → onNewIntent toggling on each subsequent launch.
+
+   Verified on real hardware (2026-06-05): complication appeared in the picker,
+   tap-to-launch produced two complete capture → transfer → transcribe → vault
+   cycles; toggle-via-on-screen-button used for stop (the complication second-tap
+   path inherits from the Phase 0.5 `am start ×2` verification — same PendingIntent
+   semantics).
+
+   **Parked enhancement — Pixel Watch 4 side button.** The PW4 adds a second
+   programmable side button alongside the crown. On that hardware the older
+   hardware-button-binding approach becomes available again (assign the side button
+   to launch the app directly, eliminating the trip through the watch face). When
+   the owner upgrades to PW4 this is a small follow-up: nothing in the app needs to
+   change — only the watch's button-mapping setting. The complication stays as the
+   universal fallback (and remains the only path on the original Pixel Watch).
 
 4. **Battery behaviour.** Measure real drain during and around recording; tune the
    optional max-duration auto-stop default if needed.

@@ -34,6 +34,7 @@ dependencies {
     coreLibraryDesugaring(libs.desugar.jdk.libs)
     implementation(libs.core.ktx)
     implementation(libs.wear)
+    implementation(libs.watchface.complications.data.source.ktx)
     implementation(libs.lifecycle.service)
     implementation(libs.play.services.wearable)
 }

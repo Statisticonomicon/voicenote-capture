@@ -5,4 +5,6 @@
     <string name="press_to_toggle">Press button to start / stop</string>
     <string name="tap_fallback">Tap toggle (fallback)</string>
     <string name="need_mic_permission">Microphone permission needed</string>
+    <string name="complication_label">VoiceNote</string>
+    <string name="complication_description">Start / stop a voice note</string>
 </resources>

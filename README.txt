@@ -4,29 +4,34 @@ Wrist-driven, eyes-free voice note capture that lands transcripts in your Obsidi
 vault — privately, through your own server, with no cloud service and no
 subscription.
 
-**Status:** Phase 1 prototype. Software pipeline validated end-to-end against a
-live home server. Remaining work (the watch→phone link, hardware-button binding,
-battery, haptics) is Phase 2 and needs the physical watch.
+**Status:** Phase 1 prototype, with Section D (watch→phone link) and the watch-face
+complication launch shortcut now verified on real hardware. The remaining Phase 2
+items — battery measurement, haptic tuning, and (parked until the PW4 upgrade)
+direct hardware-button binding — still need the physical watch in hand.
 
 ---
 
 ## What it does
 
-Press a button on the watch, speak, press to stop. The watch hands the audio to
-your phone over the Wear Data Layer; the phone uploads it to your transcription
-endpoint (your home server, reached over Tailscale), polls until transcription
-finishes, downloads the text, and writes it as a Markdown note into your Obsidian
-vault. The thinking — summarising, connecting — is left to you by design; the tool
-only captures and transcribes.
+Tap a single shortcut on the watch face, speak, tap to stop. The watch hands the
+audio to your phone over the Wear Data Layer; the phone uploads it to your
+transcription endpoint (your home server, reached over Tailscale), polls until
+transcription finishes, downloads the text, and writes it as a Markdown note into
+your Obsidian vault. The thinking — summarising, connecting — is left to you by
+design; the tool only captures and transcribes.
 
 Two cooperating apps in one Gradle project:
 
-- **`:wear`** — the watch app. Single-button launch-toggle activation (first press
+- **`:wear`** — the watch app. Single-press launch-toggle activation (first press
   starts recording, each subsequent press toggles stop/start, via
   onCreate/onNewIntent under `launchMode=singleTask`); distinct start/stop haptics;
-  screen-off capture. Recording runs in a microphone foreground service (mandatory
-  on Android 14+). The finished file is sent to the phone via `ChannelClient`.
-  On-screen tap is a guaranteed fallback control.
+  screen-off capture. The launch press itself is delivered either by a hardware
+  button mapped to the app (where the watch hardware allows it) or by a
+  watch-face **complication** (`VoiceNoteComplicationService`) — the latter is
+  the canonical path on the original Pixel Watch, whose single crown isn't
+  user-mappable to a third-party launch. Recording runs in a microphone foreground
+  service (mandatory on Android 14+). The finished file is sent to the phone via
+  `ChannelClient`. On-screen tap is a guaranteed fallback control.
 - **`:mobile`** — the phone companion. Receives the audio, saves a raw copy to a
   chosen folder, then (via WorkManager, with retry) runs the asynchronous
   transcription protocol against the endpoint and writes the returned text into the
@@ -49,13 +54,25 @@ Validated:
   the correct Android-14 type and ongoing notification, expected "no reachable phone
   node" when unpaired.
 
-Deferred to Phase 2 (require the physical watch):
+Verified on real hardware (Phase 2 work, done 2026-06-05):
 
-- Watch→phone Data Layer transfer (`ChannelClient`) — never exercised; blocked in
-  the emulator by the lack of a phone system image and the GUI-only Wear pairing
-  assistant.
-- Hardware-button binding to the app (OEM Settings → button mapping).
+- Watch→phone Data Layer transfer (`ChannelClient`) — end-to-end on real Pixel Watch
+  + Galaxy phone; transcripts landed in the vault. See `PHASE1_ACCEPTANCE_TEST.md`
+  Section D for the byte-level evidence. Caveat: manifest-declared
+  `voicenote_phone` capability was ignored by GMS Wearable on the test phone;
+  switched to dynamic `addLocalCapability` registration in :mobile.
+- Watch-face complication (`VoiceNoteComplicationService`) — one-tap launch
+  shortcut from any watch face that supports `MONOCHROMATIC_IMAGE` / `SHORT_TEXT` /
+  `SMALL_IMAGE` complication types. Replaces the hardware-button approach on the
+  original Pixel Watch (single crown, not user-mappable to a third-party launch).
+
+Still deferred to Phase 2 (require the physical watch):
+
 - Real battery behaviour and haptic feel (an emulator has no vibrator).
+- **Parked** — direct hardware-button binding: the Pixel Watch 4 ships with a
+  second programmable side button; when the owner upgrades, the watch-side OEM
+  button mapping becomes available and the complication becomes the universal
+  fallback rather than the only path. No app-code change required at that point.
 
 See `PHASE1_ACCEPTANCE_TEST.md` for the per-section pass/defer record.
 
@@ -78,7 +95,8 @@ procedure. In brief:
 
 ## Features
 
-- Single-button launch-toggle activation; on-screen tap fallback.
+- Single-press launch-toggle activation (hardware button where available, watch-face
+  complication on watches without a mappable button); on-screen tap fallback.
 - Microphone foreground service with correct Android-14+ type and permissions.
 - Distinct start/stop haptics; screen-off capture.
 - Optional max-duration auto-stop (off by default).
@@ -146,12 +164,13 @@ gradle/libs.versions.toml      version catalogue (single source for versions)
 gradlew, gradle/wrapper/        Gradle wrapper (8.14)
 
 wear/                          watch module
-  src/main/AndroidManifest.xml   mic FGS type, singleTask launcher activity
+  src/main/AndroidManifest.xml   mic FGS type, singleTask launcher activity, complication service
   src/main/java/com/notaricus/voicenote/
-    WearMainActivity.kt          launch-toggle, permissions, haptics, service control
-    RecordingService.kt          mic foreground service, MediaRecorder, auto-stop
-    WearTransfer.kt              Data Layer ChannelClient send
-  src/main/res/                  layout, strings, launcher icon
+    WearMainActivity.kt              launch-toggle, permissions, haptics, service control
+    RecordingService.kt              mic foreground service, MediaRecorder, auto-stop
+    WearTransfer.kt                  Data Layer ChannelClient send
+    VoiceNoteComplicationService.kt  watch-face complication: one-tap launch shortcut
+  src/main/res/                  layout, strings, launcher icon, ic_voicenote_mic.xml
 
 mobile/                        phone module
   src/main/AndroidManifest.xml   listener service, capability advert, NSC reference

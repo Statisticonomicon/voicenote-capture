@@ -44,5 +44,31 @@
             android:name=".RecordingService"
             android:foregroundServiceType="microphone"
             android:exported="false" />
+
+        <!--
+            Watch-face complication: a one-tap launcher for the recording toggle.
+            Replaces the hardware-button approach on watches whose buttons can't be
+            user-mapped to a third-party app (e.g. original Pixel Watch crown).
+            The system binds with BIND_COMPLICATION_PROVIDER; SUPPORTED_TYPES are
+            advertised so the complication appears in as many watch-face slots as
+            possible. UPDATE_PERIOD_SECONDS=0: never request periodic refreshes -
+            this is a static shortcut, not a data source.
+        -->
+        <service
+            android:name=".VoiceNoteComplicationService"
+            android:exported="true"
+            android:icon="@drawable/ic_voicenote_mic"
+            android:label="@string/complication_label"
+            android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
+            <intent-filter>
+                <action android:name="androidx.wear.watchface.complications.datasource.action.COMPLICATION_UPDATE_REQUEST" />
+            </intent-filter>
+            <meta-data
+                android:name="android.support.wearable.complications.SUPPORTED_TYPES"
+                android:value="MONOCHROMATIC_IMAGE,SHORT_TEXT,SMALL_IMAGE" />
+            <meta-data
+                android:name="android.support.wearable.complications.UPDATE_PERIOD_SECONDS"
+                android:value="0" />
+        </service>
     </application>
 </manifest>
