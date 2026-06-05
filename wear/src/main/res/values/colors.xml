@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FF1F1F1F</color>
+
+    <!-- Recording-screen design tokens (see design_handoff_recording_screen). -->
+    <color name="vnc_bg">#FF000000</color>
+    <color name="vnc_record_red">#FFFF453A</color>
+    <color name="vnc_record_red_soft">#FFFF6961</color>
+    <color name="vnc_ink">#FFF5F6F7</color>
+    <color name="vnc_muted">#FF8B8F96</color>
 </resources>

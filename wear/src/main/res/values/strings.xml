@@ -1,9 +1,8 @@
 <resources>
     <string name="app_name">Voice Note</string>
+    <!-- Used both as the foreground-service notification title and as the on-screen status label. -->
     <string name="recording">RECORDING</string>
-    <string name="stopped">STOPPED</string>
-    <string name="press_to_toggle">Press button to start / stop</string>
-    <string name="tap_fallback">Tap toggle (fallback)</string>
+    <string name="press_crown_to_stop">Press crown to stop</string>
     <string name="need_mic_permission">Microphone permission needed</string>
     <string name="complication_label">VoiceNote</string>
     <string name="complication_description">Start / stop a voice note</string>

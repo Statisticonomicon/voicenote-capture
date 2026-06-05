@@ -50,6 +50,20 @@ class RecordingService : Service() {
         stopAndHandoff()
     }
 
+    // Mic-amplitude sampling for the on-screen waveform. ~40 ms is a good
+    // compromise: smooth animation without burning CPU.
+    private val amplitudeHandler = Handler(Looper.getMainLooper())
+    private val amplitudeIntervalMs = 40L
+    private val amplitudeRunnable = object : Runnable {
+        override fun run() {
+            val r = recorder
+            if (r != null && isRecording) {
+                RecordingState.amplitude = try { r.maxAmplitude } catch (_: Throwable) { 0 }
+                amplitudeHandler.postDelayed(this, amplitudeIntervalMs)
+            }
+        }
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -85,6 +99,9 @@ class RecordingService : Service() {
             recorder = rec
             outputFile = file
             isRecording = true
+            RecordingState.startTimeMs = System.currentTimeMillis()
+            RecordingState.amplitude = 0
+            amplitudeHandler.post(amplitudeRunnable)
             if (MAX_DURATION_MS > 0) autoStopHandler.postDelayed(autoStopRunnable, MAX_DURATION_MS)
             Log.d(TAG, "Recording started: ${file.name}")
         } catch (t: Throwable) {
@@ -97,6 +114,9 @@ class RecordingService : Service() {
     private fun stopAndHandoff() {
         if (!isRecording) { stopSelf(); return }
         autoStopHandler.removeCallbacks(autoStopRunnable)
+        amplitudeHandler.removeCallbacks(amplitudeRunnable)
+        RecordingState.amplitude = 0
+        RecordingState.startTimeMs = 0L
         val file = outputFile
         try {
             recorder?.stop()
@@ -151,6 +171,9 @@ class RecordingService : Service() {
 
     override fun onDestroy() {
         autoStopHandler.removeCallbacks(autoStopRunnable)
+        amplitudeHandler.removeCallbacks(amplitudeRunnable)
+        RecordingState.amplitude = 0
+        RecordingState.startTimeMs = 0L
         cleanupRecorder()
         super.onDestroy()
     }

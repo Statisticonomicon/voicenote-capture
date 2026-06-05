@@ -1,6 +1,8 @@
 package com.notaricus.voicenote
 
 import android.Manifest
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.ComponentName
 import android.content.Intent
@@ -8,61 +10,88 @@ import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
-import android.widget.Button
+import android.view.View
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.TextView
 import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 
 /**
- * Watch entry point and activation controller.
+ * Watch entry point and activation controller for the (single-screen) recording app.
  *
- * Activation model (revised in Phase 2, after on-watch testing):
+ * Activation model (revised in Phase 2 after on-watch testing):
  *  - **Complication tap / hardware launch -> always start recording.**
  *    Both onCreate and onNewIntent route to [ensureRecording]; if a session is
  *    already in progress the start is a no-op (RecordingService.ACTION_START is
- *    idempotent). This avoids the toggle-drift problem we saw on Pixel Watch when
- *    the activity's `recording` mirror got out of sync with the service.
- *  - **Crown press (onUserLeaveHint) -> always stop + finish.** The crown is the
- *    only "out" from the activity on a single-button Pixel Watch and the user's
- *    intent is unambiguous: "I'm done." onUserLeaveHint fires only on
- *    user-initiated navigation, so screen timeout still keeps capture going.
- *    finish() ensures the next launch is a fresh onCreate, not a stale onNewIntent.
- *  - **On-screen tap** stays as an in-app toggle fallback (guaranteed control if
- *    a watch face has no spare complication slot).
+ *    idempotent). This avoids the toggle-drift problem we saw on Pixel Watch
+ *    when the activity's `recording` mirror got out of sync with the service.
+ *  - **Crown press (onUserLeaveHint) -> always stop + finish.** The crown is
+ *    the only "out" from the activity on a single-button Pixel Watch and the
+ *    user's intent is unambiguous. onUserLeaveHint fires only on user-initiated
+ *    navigation, so screen timeout still keeps capture going.
+ *  - **finish() after every stop** so the next launch is a clean onCreate.
  *
- * Recording itself runs in [RecordingService] (a microphone foreground service),
- * mandatory on Android 14+ for screen-off capture. RECORD_AUDIO is a while-in-use
- * permission, so the service must be started from the foreground (here).
+ * The on-screen layout is the redesigned Option A "Pure Minimal" recording
+ * screen (see design_handoff_recording_screen): black background, red blinking
+ * status dot + "RECORDING" label, hero m:ss timer with tabular digits, live
+ * mic-amplitude waveform, and a quiet "Press crown to stop" hint. There is no
+ * idle / stopped state in the UI — the screen is only shown while recording.
  */
 class WearMainActivity : Activity() {
 
     private companion object {
         const val TAG = "VNC-Wear"
         const val REQ_PERMS = 1001
+        const val TIMER_TICK_MS = 250L
+        const val WAVEFORM_TICK_MS = 50L
+        const val DOT_BLINK_PERIOD_MS = 1400L
     }
 
-    private lateinit var statusView: TextView
+    private lateinit var statusRow: View
+    private lateinit var recordDot: View
+    private lateinit var timerView: TextView
+    private lateinit var waveformView: WaveformView
     private lateinit var hintView: TextView
-    private lateinit var tapToggle: Button
 
     /** Mirror of the service state for UI; the service is the source of truth. */
     private var recording = false
 
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var dotBlinkAnimator: ObjectAnimator? = null
+
+    private val timerTick = object : Runnable {
+        override fun run() {
+            val start = RecordingState.startTimeMs
+            timerView.text = formatElapsed(
+                if (start > 0L) (System.currentTimeMillis() - start) / 1000L else 0L
+            )
+            mainHandler.postDelayed(this, TIMER_TICK_MS)
+        }
+    }
+
+    private val waveformTick = object : Runnable {
+        override fun run() {
+            waveformView.pushAmplitude(normalizeAmplitude(RecordingState.amplitude))
+            mainHandler.postDelayed(this, WAVEFORM_TICK_MS)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_wear_main)
-        statusView = findViewById(R.id.statusView)
+        statusRow = findViewById(R.id.statusRow)
+        recordDot = findViewById(R.id.recordDot)
+        timerView = findViewById(R.id.timerView)
+        waveformView = findViewById(R.id.waveformView)
         hintView = findViewById(R.id.hintView)
-        tapToggle = findViewById(R.id.tapToggle)
-        tapToggle.setOnClickListener { onTapToggle() }
 
-        // Force complication providers to re-render with the current app resources.
-        // Wear caches the last ComplicationData; without this kick, an icon change
-        // (e.g. swapped mipmap) is invisible until the user removes + re-adds the
-        // complication. Idempotent and cheap.
+        // Kick connected complications so a freshly-deployed icon shows up
+        // without the user having to remove and re-add the complication.
         requestComplicationRefresh()
 
         ensurePermissionsThen { ensureRecording("onCreate") }
@@ -77,16 +106,22 @@ class WearMainActivity : Activity() {
 
     /**
      * User-initiated navigation away (crown press / system home gesture).
-     * Does NOT fire on screen timeout or transient overlays, so screen-off capture
-     * continues to work as designed.
+     * Does NOT fire on screen timeout or transient overlays, so screen-off
+     * capture continues to work as designed.
      */
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         stopAndExit("user-leave")
     }
 
-    private fun onTapToggle() {
-        if (recording) stopAndExit("tap") else ensureRecording("tap")
+    override fun onResume() {
+        super.onResume()
+        startUiAnimations()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        stopUiAnimations()
     }
 
     private fun ensureRecording(source: String) {
@@ -96,13 +131,11 @@ class WearMainActivity : Activity() {
         }
         if (recording) {
             Log.d(TAG, "already recording (via $source)")
-            render()
             return
         }
         startRecording()
         vibrate(start = true)
         recording = true
-        render()
         Log.d(TAG, "start -> RECORDING via $source")
     }
 
@@ -115,8 +148,6 @@ class WearMainActivity : Activity() {
         } else {
             Log.d(TAG, "exit (not recording) via $source")
         }
-        // Always finish so the next launch is a clean onCreate -> ensureRecording.
-        // Prevents the toggle-drift seen when the activity stayed alive between sessions.
         finish()
     }
 
@@ -140,10 +171,42 @@ class WearMainActivity : Activity() {
         }
     }
 
-    private fun render() {
-        statusView.text = if (recording) getString(R.string.recording) else getString(R.string.stopped)
-        statusView.setBackgroundColor(if (recording) 0xFF1B5E20.toInt() else 0xFF333333.toInt())
-        hintView.text = getString(R.string.press_to_toggle)
+    // ---- UI animations: dot blink, timer tick, waveform tick ----
+
+    private fun startUiAnimations() {
+        // Reset waveform when we return to the screen; the service's amplitude
+        // stream feeds the new history from now on.
+        waveformView.clear()
+
+        if (dotBlinkAnimator == null) {
+            dotBlinkAnimator = ObjectAnimator.ofFloat(recordDot, "alpha", 1f, 0.25f, 1f).apply {
+                duration = DOT_BLINK_PERIOD_MS
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+            }
+        }
+        dotBlinkAnimator?.start()
+
+        mainHandler.removeCallbacks(timerTick)
+        mainHandler.removeCallbacks(waveformTick)
+        mainHandler.post(timerTick)
+        mainHandler.post(waveformTick)
+    }
+
+    private fun stopUiAnimations() {
+        dotBlinkAnimator?.cancel()
+        recordDot.alpha = 1f
+        mainHandler.removeCallbacks(timerTick)
+        mainHandler.removeCallbacks(waveformTick)
+    }
+
+    private fun formatElapsed(totalSeconds: Long): String {
+        val s = totalSeconds.coerceAtLeast(0L)
+        val minutes = s / 60
+        val seconds = s % 60
+        // Spec: m:ss until 10 min, then mm:ss.
+        return if (minutes < 10) "%d:%02d".format(minutes, seconds)
+        else "%02d:%02d".format(minutes, seconds)
     }
 
     // ---- Permissions ----
@@ -173,6 +236,8 @@ class WearMainActivity : Activity() {
         if (requestCode == REQ_PERMS && hasAllPermissions()) {
             pendingAfterPerms?.invoke()
         } else {
+            // Permission was denied — surface the reason in the existing hint slot.
+            // The crown-press path will then cleanly finish() the activity.
             hintView.text = getString(R.string.need_mic_permission)
         }
         pendingAfterPerms = null
@@ -180,13 +245,14 @@ class WearMainActivity : Activity() {
 
     // ---- Haptics ----
     //
-    // Predefined effects (EFFECT_HEAVY_CLICK / EFFECT_DOUBLE_CLICK) on API 29+ map
-    // to the device's tuned vibrator profile and are the most reliably perceptible
-    // on small watch motors. Below API 29, fall back to longer raw pulses
-    // (the original 60ms pattern was inaudible on the Pixel Watch motor).
+    // Predefined effects (EFFECT_HEAVY_CLICK / EFFECT_DOUBLE_CLICK) on API 29+
+    // map to the device's tuned vibrator profile and are the most reliably
+    // perceptible on small watch motors. Below API 29, fall back to longer raw
+    // pulses (the original 60ms waveform was inaudible on the Pixel Watch).
     //
-    // USAGE_ASSISTANCE_SONIFICATION audio attributes mark this as an interactive
-    // confirmation tone so it survives most do-not-disturb / silent-mode filters.
+    // USAGE_ASSISTANCE_SONIFICATION audio attributes mark this as an
+    // interactive confirmation tone so it survives most do-not-disturb /
+    // silent-mode filters.
 
     private fun vibrate(start: Boolean) {
         val v = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
