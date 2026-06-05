@@ -2,6 +2,7 @@ package com.notaricus.voicenote
 
 import android.Manifest
 import android.app.Activity
+import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
@@ -13,6 +14,7 @@ import android.os.VibratorManager
 import android.util.Log
 import android.widget.Button
 import android.widget.TextView
+import androidx.wear.watchface.complications.datasource.ComplicationDataSourceUpdateRequester
 
 /**
  * Watch entry point and activation controller.
@@ -56,6 +58,12 @@ class WearMainActivity : Activity() {
         hintView = findViewById(R.id.hintView)
         tapToggle = findViewById(R.id.tapToggle)
         tapToggle.setOnClickListener { onTapToggle() }
+
+        // Force complication providers to re-render with the current app resources.
+        // Wear caches the last ComplicationData; without this kick, an icon change
+        // (e.g. swapped mipmap) is invisible until the user removes + re-adds the
+        // complication. Idempotent and cheap.
+        requestComplicationRefresh()
 
         ensurePermissionsThen { ensureRecording("onCreate") }
     }
@@ -119,6 +127,17 @@ class WearMainActivity : Activity() {
 
     private fun stopRecording() {
         startService(Intent(this, RecordingService::class.java).setAction(RecordingService.ACTION_STOP))
+    }
+
+    private fun requestComplicationRefresh() {
+        try {
+            ComplicationDataSourceUpdateRequester
+                .create(this, ComponentName(this, VoiceNoteComplicationService::class.java))
+                .requestUpdateAll()
+            Log.d(TAG, "complication refresh requested")
+        } catch (t: Throwable) {
+            Log.w(TAG, "complication refresh failed: ${t.message}")
+        }
     }
 
     private fun render() {
