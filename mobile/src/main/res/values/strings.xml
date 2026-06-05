@@ -1,9 +1,19 @@
 <resources>
     <string name="app_name">Voice Note Companion</string>
+
+    <string name="provider_label">Transcription provider</string>
+    <string name="provider_self_hosted">Self-hosted (Whisper server)</string>
+    <string name="provider_openai">OpenAI Whisper (your API key)</string>
+
+    <string name="self_hosted_section">Self-hosted endpoint</string>
     <string name="endpoint_label">Processing endpoint base URL</string>
     <string name="endpoint_hint">http://host:8457</string>
     <string name="token_label">Auth token (optional)</string>
     <string name="token_hint">Bearer token</string>
+
+    <string name="openai_section">OpenAI</string>
+    <string name="openai_key_label">OpenAI API key</string>
+    <string name="openai_key_hint">sk-…</string>
     <string name="mock_label">Mock mode (no network; canned transcript)</string>
     <string name="save">Save settings</string>
     <string name="pick_raw">Choose raw-audio folder</string>

@@ -77,6 +77,10 @@ class ProcessWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
         // Polling cadence and per-execution budget (kept under WorkManager's ~10 min cap).
         private const val POLL_INTERVAL_MS = 3_000L
         private const val MAX_POLL_MILLIS = 8L * 60L * 1000L
+
+        // OpenAI Whisper (BYOK) — sync POST, response_format=text.
+        private const val OPENAI_TRANSCRIPTIONS_URL = "https://api.openai.com/v1/audio/transcriptions"
+        private const val OPENAI_MODEL = "whisper-1"
     }
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
@@ -97,16 +101,26 @@ class ProcessWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
         val settings = Settings(applicationContext)
 
         try {
-            val text = if (settings.mockMode) {
-                if (!file.exists()) {
-                    Log.e(TAG, "Missing file: $path")
-                    return@withContext Result.failure()
+            val text = when {
+                settings.mockMode -> {
+                    if (!file.exists()) {
+                        Log.e(TAG, "Missing file: $path")
+                        return@withContext Result.failure()
+                    }
+                    mockTranscript(file)
                 }
-                mockTranscript(file)
-            } else {
-                // null => job still running and this execution's budget is spent; resume on retry.
-                transcribeViaEndpoint(settings, file, path)
-                    ?: return@withContext Result.retry()
+                settings.provider == Settings.PROVIDER_OPENAI -> {
+                    if (!file.exists()) {
+                        Log.e(TAG, "Missing file: $path")
+                        return@withContext Result.failure()
+                    }
+                    transcribeViaOpenAi(settings, file)
+                }
+                else -> {
+                    // null => job still running and this execution's budget is spent; resume on retry.
+                    transcribeViaEndpoint(settings, file, path)
+                        ?: return@withContext Result.retry()
+                }
             }
             writeToVault(settings.vaultFolderUri, file.nameWithoutExtension, text)
             Log.d(TAG, "Processed ${file.name} -> vault")
@@ -137,6 +151,60 @@ class ProcessWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
         "# Voice note (MOCK)\n\nSource: ${file.name}\n\n" +
         "This is mock transcript text generated locally because mock mode is on. " +
         "Turn mock mode off in settings to use your endpoint instead.\n"
+
+    // ---- OpenAI Whisper (synchronous; BYOK) -------------------------------
+
+    /**
+     * POST the audio to https://api.openai.com/v1/audio/transcriptions and return
+     * the transcript as plain text.
+     *
+     * Synchronous: no job_id / polling. response_format=text means the response
+     * body is the transcript itself (no JSON parsing). The user's own API key
+     * pays for the call (BYOK), so we don't validate or rate-limit it here —
+     * OpenAI's own error response is forwarded via the existing retry path.
+     *
+     * Whisper file-size limit is 25 MB; our recordings are typically <1 MB so
+     * we don't pre-check.
+     */
+    private fun transcribeViaOpenAi(settings: Settings, file: File): String {
+        val apiKey = settings.openAiApiKey.trim()
+        if (apiKey.isEmpty()) {
+            throw IllegalStateException("OpenAI API key is not set in settings")
+        }
+        val boundary = "----vnc${System.currentTimeMillis()}"
+        val conn = (URL(OPENAI_TRANSCRIPTIONS_URL).openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = CONNECT_TIMEOUT_MS
+            readTimeout = UPLOAD_READ_TIMEOUT_MS
+            doOutput = true
+            setRequestProperty("Authorization", "Bearer $apiKey")
+            setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+        }
+        try {
+            DataOutputStream(conn.outputStream).use { out ->
+                writeFormField(out, boundary, "model", OPENAI_MODEL)
+                writeFormField(out, boundary, "response_format", "text")
+                out.writeBytes("--$boundary\r\n")
+                out.writeBytes("Content-Disposition: form-data; name=\"file\"; filename=\"${file.name}\"\r\n")
+                out.writeBytes("Content-Type: audio/mp4\r\n\r\n")
+                file.inputStream().use { it.copyTo(out) }
+                out.writeBytes("\r\n--$boundary--\r\n")
+                out.flush()
+            }
+            val text = readBody(conn).trim()
+            Log.d(TAG, "OpenAI transcribed ${file.name} (${text.length} chars)")
+            return text
+        } finally {
+            conn.disconnect()
+        }
+    }
+
+    private fun writeFormField(out: DataOutputStream, boundary: String, name: String, value: String) {
+        out.writeBytes("--$boundary\r\n")
+        out.writeBytes("Content-Disposition: form-data; name=\"$name\"\r\n\r\n")
+        out.writeBytes(value)
+        out.writeBytes("\r\n")
+    }
 
     // ---- Asynchronous endpoint protocol -----------------------------------
 

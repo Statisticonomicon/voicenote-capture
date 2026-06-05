@@ -8,6 +8,7 @@ import android.util.Log
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
+import android.widget.RadioGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.work.OneTimeWorkRequestBuilder
@@ -29,8 +30,10 @@ class SettingsActivity : ComponentActivity() {
     private companion object { const val TAG = "VNC-Settings" }
 
     private lateinit var settings: Settings
+    private lateinit var providerGroup: RadioGroup
     private lateinit var endpoint: EditText
     private lateinit var token: EditText
+    private lateinit var openAiKey: EditText
     private lateinit var mock: CheckBox
     private lateinit var folders: TextView
 
@@ -59,19 +62,31 @@ class SettingsActivity : ComponentActivity() {
             .addOnSuccessListener { Log.d(TAG, "voicenote_phone capability registered") }
             .addOnFailureListener { e -> Log.e(TAG, "addLocalCapability failed", e) }
 
+        providerGroup = findViewById(R.id.providerGroup)
         endpoint = findViewById(R.id.endpoint)
         token = findViewById(R.id.token)
+        openAiKey = findViewById(R.id.openAiKey)
         mock = findViewById(R.id.mock)
         folders = findViewById(R.id.folders)
 
+        providerGroup.check(
+            if (settings.provider == Settings.PROVIDER_OPENAI) R.id.providerOpenAi
+            else R.id.providerSelfHosted
+        )
         endpoint.setText(settings.endpointUrl)
         token.setText(settings.authToken)
+        openAiKey.setText(settings.openAiApiKey)
         mock.isChecked = settings.mockMode
         refreshFolders()
 
         findViewById<Button>(R.id.save).setOnClickListener {
+            settings.provider = when (providerGroup.checkedRadioButtonId) {
+                R.id.providerOpenAi -> Settings.PROVIDER_OPENAI
+                else -> Settings.PROVIDER_SELF_HOSTED
+            }
             settings.endpointUrl = endpoint.text.toString().trim()
             settings.authToken = token.text.toString().trim()
+            settings.openAiApiKey = openAiKey.text.toString().trim()
             settings.mockMode = mock.isChecked
             Toast.makeText(this, R.string.saved, Toast.LENGTH_SHORT).show()
         }
