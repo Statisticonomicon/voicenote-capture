@@ -27,9 +27,16 @@ you process.
      folder inside your vault (a dedicated subfolder such as `VoiceNotes` keeps
      things tidy).
    - **Raw-audio folder** (optional) — an independent backup copy of each recording.
-   - **Processing endpoint base URL** — your transcription server, e.g.
-     `http://<your-tailscale-host>:8457`. Leave **Mock mode ON** until you want to
-     use the real server; turn it off once the endpoint is set.
+   - **Transcription provider** — pick one:
+     - *Self-hosted (Whisper server)* — set the **Processing endpoint base URL** to
+       your server, e.g. `http://<your-tailscale-host>:8457`. Auth token is optional.
+       No per-use cost; audio stays inside your infrastructure.
+     - *OpenAI Whisper (your API key)* — paste your **OpenAI API key** (`sk-…`).
+       OpenAI bills your account per minute of audio. Quickest setup, no server to
+       maintain, but audio is sent to OpenAI.
+   - **Mock mode** is off by default. Tick it temporarily if you want to verify
+     the watch → phone → vault chain end-to-end without involving a provider —
+     handy for first-run sanity checks. Don't forget to un-tick before real use.
 4. On the watch, long-press the watch face → Customize → pick a complication slot
    → choose **VoiceNote**. This is your one-tap shortcut to start a recording from
    any watch face. (On the original Pixel Watch the single crown isn't
@@ -78,12 +85,14 @@ and the recording screen visible, is what actually stops the session.
 
 ## Mock mode vs real transcription
 
-- **Mock mode ON** (default): no network used; the note contains placeholder text.
-  Useful for confirming the capture-and-write flow works before involving the
-  server.
-- **Mock mode OFF**: the phone uploads to your endpoint, waits for transcription,
-  and writes the real transcript. Requires the endpoint reachable (you on the
-  tailnet, the server running).
+- **Mock mode OFF** (default): the phone sends the audio to whichever provider
+  you picked — your self-hosted Whisper server, or OpenAI — and writes the real
+  transcript into the vault. Requires that the provider is reachable (you on the
+  tailnet with your server up, or a valid OpenAI key with quota).
+- **Mock mode ON** (opt-in, was default during Phase 1 development): no network
+  used; the note contains placeholder text marked "MOCK". Useful for confirming
+  the watch → phone → vault chain works before you configure a provider, or for
+  short demos with no transcription cost. Turn it off again before real use.
 
 ---
 

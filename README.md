@@ -126,8 +126,13 @@ procedure. In brief:
 - WorkManager upload queue with retry/backoff and resume-on-retry (a long
   transcription resumes polling its job instead of re-uploading).
 - Asynchronous transcription protocol (upload → poll → download).
-- Configurable endpoint base URL and optional auth token.
-- In-app mock mode (default on) for offline, server-free testing.
+- **Transcription provider choice**: self-hosted Whisper server (the original
+  async upload/poll/download path; full privacy, no per-use cost) or **BYOK
+  OpenAI Whisper** (the user supplies their own OpenAI API key; sync POST to
+  `api.openai.com`, OpenAI bills the user, faster setup but audio leaves the
+  owned infrastructure).
+- In-app mock mode (default **off**; opt-in) for offline, server-free testing
+  of the watch → phone → vault chain without a provider configured.
 - Scoped cleartext: HTTP permitted only to the Tailscale host; all other hosts
   remain HTTPS-only.
 - Manual "import audio" test path on the phone (exercises the full chain without a
@@ -137,19 +142,29 @@ procedure. In brief:
 
 ## Configuration (phone settings)
 
-- **Processing endpoint base URL** — e.g. `http://<your-tailscale-host>:8457`.
-  No path; the app appends `/upload`, `/status/{id}`, `/download/{id}`.
-- **Auth token** (optional) — sent as a Bearer header if set.
-- **Mock mode** — default ON; skips the network and writes canned text.
+- **Transcription provider** — radio choice at the top of settings:
+  - *Self-hosted (Whisper server)* — default; talks the async protocol below.
+  - *OpenAI Whisper (your API key)* — sync POST to `api.openai.com`; BYOK.
+- **Processing endpoint base URL** *(self-hosted)* — e.g.
+  `http://<your-tailscale-host>:8457`. No path; the app appends `/upload`,
+  `/status/{id}`, `/download/{id}`.
+- **Auth token** *(self-hosted, optional)* — sent as a Bearer header if set.
+- **OpenAI API key** *(BYOK)* — `sk-…` from your OpenAI account; password-masked
+  in the UI; persisted only in SharedPreferences on the phone.
+- **Mock mode** — default **OFF** (was ON during Phase 1 emulator development).
+  Skips the network and writes canned text; useful for verifying the chain on a
+  phone before configuring a provider.
 - **Raw-audio folder** (SAF) — independent backup of the captured audio.
 - **Obsidian vault folder** (SAF) — where transcript notes are written.
 - **Max-duration auto-stop** (watch) — off by default.
 
 ---
 
-## Transcription protocol (what the phone speaks to the endpoint)
+## Transcription protocols
 
-Asynchronous, against the configured base URL:
+### Self-hosted (default) — asynchronous
+
+Against the configured base URL:
 
 ```
 POST {base}/upload            (multipart field "audio")     -> { "job_id": "..." }
@@ -157,11 +172,27 @@ GET  {base}/status/{job_id}   (queued|loading_model|transcribing|done|error)
 GET  {base}/download/{job_id}?format=plain                  -> transcript text
 ```
 
-The note is written to the vault on `done`. On `error` the worker logs the server's
-message, clears the job id, and retries. Robustness: per-call HTTP timeouts; the
-job id is persisted per audio path so a resumed worker continues polling instead of
-re-uploading; a per-execution poll budget keeps each run under WorkManager's ~10 min
-cap; `MAX_RUN_ATTEMPTS = 5` bounds runaway retries.
+The note is written to the vault on `done`. On `error` the worker logs the
+server's message, clears the job id, and retries. Robustness: per-call HTTP
+timeouts; the job id is persisted per audio path so a resumed worker continues
+polling instead of re-uploading; a per-execution poll budget keeps each run
+under WorkManager's ~10 min cap; `MAX_RUN_ATTEMPTS = 5` bounds runaway retries.
+
+### OpenAI Whisper (BYOK) — synchronous
+
+```
+POST https://api.openai.com/v1/audio/transcriptions
+     Authorization: Bearer <user's API key>
+     multipart: model=whisper-1, response_format=text, file=<.m4a>
+     -> 200, body = transcript text
+```
+
+No job_id, no polling. The response is the transcript, written to the vault
+verbatim. Failures share the same retry path as the self-hosted branch
+(IOException → WorkManager backoff up to `MAX_RUN_ATTEMPTS`). Note: this
+provider's code path is exercised by the same `ProcessWorker` mock-mode tests,
+but has not yet been hit against a real OpenAI key — first BYOK user is the
+real end-to-end check.
 
 ---
 
@@ -173,6 +204,10 @@ HTTPS-only. This is acceptable because the Tailscale tunnel encrypts the transpo
 "cleartext HTTP over Tailscale" is plaintext HTTP *inside* an encrypted tunnel, not
 plaintext on the open wire. If the Tailscale hostname changes, update the config and
 rebuild.
+
+The OpenAI BYOK provider uses HTTPS to `api.openai.com` directly; nothing in the
+cleartext-allow list applies to it. Switching providers does not require a
+network-security-config change.
 
 ---
 
@@ -238,7 +273,8 @@ docs/spikes/                    PHASE0_README.md, PHASE05_HOW_TO_RUN.md (history
   `org.gradle.java.home` points at it, then `./gradlew --stop` and rebuild.
 - **`Cleartext HTTP traffic to host not permitted`:** the endpoint host isn't in
   `network_security_config.xml`. Add the host and rebuild.
-- **Note says "MOCK":** mock mode is on, or the endpoint isn't set. Turn mock mode
+- **Note says "MOCK":** mock mode is on (it's opt-in but persists once you check it),
+  or the provider isn't configured. Turn mock mode
   off and set the base URL.
 - **Note never appears, log shows retries with connection errors:** the phone can't
   reach the endpoint. Confirm both devices are on the tailnet and the server is up

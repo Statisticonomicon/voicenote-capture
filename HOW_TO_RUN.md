@@ -95,6 +95,10 @@ adb -s <serial> logcat -s VNC-Listener:D VNC-Worker:D            # phone
 The full pass/defer record is in `PHASE1_ACCEPTANCE_TEST.md`. Summary of how to run
 each:
 
+> Note: as of Phase 2 the mock-mode default is **OFF** for new installs (was ON
+> during Phase 1 dev). For the mock-mode-based Section A below, you'll need to
+> tick the Mock checkbox in settings before running it.
+
 ### Section A — phone alone, mock mode (core pipeline, no watch)
 1. Install `:mobile` on the phone.
 2. Settings: pick a vault folder; leave **Mock mode ON**.

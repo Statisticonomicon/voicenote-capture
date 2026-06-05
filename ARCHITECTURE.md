@@ -69,11 +69,20 @@ scope for this repo.
   audio over the Data Layer channel.
 - **Persist raw:** saves a copy to the user-chosen raw-audio folder (SAF), before
   any upload, so nothing is lost on endpoint failure.
-- **Process:** `ProcessWorker` (a `CoroutineWorker`) runs the asynchronous
-  transcription protocol with retry/backoff, then writes the returned text into the
-  user-chosen Obsidian vault folder (SAF). Mock mode skips the network.
-- **Settings:** `SettingsActivity` + `Settings` — endpoint base URL, auth token,
-  mock mode, raw + vault folders (SAF tree URIs with persisted permission).
+- **Process:** `ProcessWorker` (a `CoroutineWorker`) picks a transcription
+  provider per `Settings.provider`:
+  - *Self-hosted* (default) — async upload / poll / download against the
+    user's Whisper server (the original protocol described below).
+  - *OpenAI Whisper (BYOK)* — sync POST to
+    `https://api.openai.com/v1/audio/transcriptions` with multipart fields
+    `model=whisper-1`, `response_format=text`, `file=<.m4a>`, Bearer auth via
+    the user's own API key. No job_id, no polling.
+  Either path's text is then written into the user-chosen Obsidian vault folder
+  (SAF). Mock mode short-circuits both providers and writes canned text.
+- **Settings:** `SettingsActivity` + `Settings` — provider choice, endpoint base
+  URL + auth token (self-hosted), OpenAI API key (BYOK), mock mode (default OFF
+  for new installs in Phase 2; was default ON during Phase 1 emulator dev), raw
+  + vault folders (SAF tree URIs with persisted permission).
 
 ### Transcription endpoint (separate project, out of scope here)
 - faster-whisper Flask server in Docker; reached over Tailscale at a stable MagicDNS
@@ -137,7 +146,10 @@ flowchart LR
 - Max-duration auto-stop (watch): off by default; minutes when on.
 - Audio: mono 16 kHz AAC default.
 - Raw-audio folder (phone, SAF).
-- Processing endpoint base URL; optional auth token.
+- Transcription provider (self-hosted | OpenAI BYOK).
+- Self-hosted: endpoint base URL; optional auth token.
+- OpenAI: user-supplied API key (`sk-…`); model is hard-coded to `whisper-1` for
+  now.
 - Output Obsidian vault folder (phone, SAF).
 
 ## Security & privacy
