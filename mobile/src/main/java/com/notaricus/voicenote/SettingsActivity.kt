@@ -13,6 +13,7 @@ import android.widget.Toast
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import com.google.android.gms.wearable.Wearable
 import java.io.File
 
 /**
@@ -50,6 +51,13 @@ class SettingsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         settings = Settings(this)
         setContentView(R.layout.activity_settings)
+
+        // Dynamic capability advert: more reliable than manifest meta-data, which
+        // we observed being skipped by GMS Wearable on this device.
+        Wearable.getCapabilityClient(this)
+            .addLocalCapability("voicenote_phone")
+            .addOnSuccessListener { Log.d(TAG, "voicenote_phone capability registered") }
+            .addOnFailureListener { e -> Log.e(TAG, "addLocalCapability failed", e) }
 
         endpoint = findViewById(R.id.endpoint)
         token = findViewById(R.id.token)

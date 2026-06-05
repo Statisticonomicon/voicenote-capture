@@ -52,23 +52,40 @@ Log filters:
 - [N/A] Haptic feel — no vibrator on the emulator; verify on real hardware (Phase 2).
 
 ## D. The link — watch → phone Data Layer transfer
-- [DEFER] Not runnable in this environment: no phone system image installed, no
-  cmdline-tools to create one, and the Wear↔phone pairing requires Android Studio's
-  GUI assistant (no clean headless path). Low risk — it is the standard Wear Data
-  Layer pattern (`ChannelClient` + the capability advert in the mobile manifest) —
-  but untested. Run on the real watch + phone in Phase 2.
+- [PASS] Verified on real hardware (2026-06-05): Pixel Watch (`5e654a1e`) paired with
+  Galaxy M33 5G (`fde9fdf`). Four takes recorded on the watch, each transferred over
+  the Data Layer and processed end-to-end:
+  - Watch (`VNC-Xfer`): `Sent note-<stamp>.m4a to fde9fdf` for every take.
+  - Phone (`VNC-Listener`): `Received note-<stamp>.m4a (<N> bytes)` with byte counts
+    matching the watch (e.g. 281761 / 46241 / 9437 / 29857).
+  - Phone (`VNC-Worker`): `Uploaded …, job_id=…` → `status=transcribing` →
+    `Processed … -> vault`.
+  - Vault gained four `.m4a` raw-audio backups + four `note-<rec>-<process>.md`
+    transcripts.
+- [NOTE — capability advert] The static
+  `<meta-data android:name="com.google.android.wearable.capabilities">` was silently
+  ignored by GMS Wearable on the Galaxy M33 (the package was absent from
+  `dumpsys … WearableService` CapabilityService entries even after `install -r`, app
+  launch, and a BT cycle). Other apps' manifest-declared caps were registered
+  normally, so this is a per-package GMS scan flake. Replaced with dynamic
+  registration via `Wearable.getCapabilityClient(this).addLocalCapability("voicenote_phone")`
+  in `SettingsActivity.onCreate` (canonical Wear OS pattern; persists at the GMS
+  level after one launch). The static meta-data + `wear_capabilities.xml` are kept as
+  belt-and-braces.
 
 ---
 
 ## Result
 
-**Phase 1: PASS (software pipeline proven in its parts).** A and B prove
-transfer→transcribe→vault against the live server; C proves watch capture. D is the
-single untested seam and is deferred with the rest of the hardware work to Phase 2.
+**Phase 1: PASS (full software pipeline proven end-to-end, including the
+watch→phone link).** A and B prove transfer→transcribe→vault against the live
+server; C proves watch capture; D (verified 2026-06-05 on real hardware) proves the
+watch→phone Data Layer leg now closes the loop.
 
 ## Explicitly NOT covered (Phase 2 — see PHASE2_PLAN.md)
-- Watch→phone Data Layer transfer on real hardware.
 - Binding a physical hardware button to the app (OEM Settings → button mapping).
+  On Pixel Watch the side button / crown cannot be remapped by an app; it requires
+  the watch's system button-mapping UI, per-device.
 - Real battery behaviour during recording.
 - Haptic feel tuning.
 - "notaricus" wake word (optional, no-hands; parked).
