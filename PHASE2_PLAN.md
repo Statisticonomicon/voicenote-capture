@@ -51,10 +51,19 @@ support grounds.
    onCreate → onNewIntent toggling on each subsequent launch.
 
    Verified on real hardware (2026-06-05): complication appeared in the picker,
-   tap-to-launch produced two complete capture → transfer → transcribe → vault
-   cycles; toggle-via-on-screen-button used for stop (the complication second-tap
-   path inherits from the Phase 0.5 `am start ×2` verification — same PendingIntent
-   semantics).
+   tap-to-launch produced complete capture → transfer → transcribe → vault
+   cycles; the complication double-tap (start, then again to stop) was also
+   confirmed in the watch log (`launch:onCreate` then `relaunch:onNewIntent`).
+
+   **Activation model revised (2026-06-05).** On-watch testing exposed
+   toggle-drift when the activity outlived a session, so the Phase-0.5
+   toggle-on-relaunch model was replaced with: complication tap (onCreate /
+   onNewIntent) ALWAYS starts a recording; crown press (`onUserLeaveHint`)
+   ALWAYS stops and `finish()`'es the activity. Every launch is then a clean
+   `onCreate` → `ensureRecording`. Idempotent in both directions
+   (`RecordingService.ACTION_START` no-ops if already recording). The on-screen
+   tap inside the activity remains a toggle fallback. See README / ARCHITECTURE
+   for the current model.
 
    **Parked enhancement — Pixel Watch 4 side button.** The PW4 adds a second
    programmable side button alongside the crown. On that hardware the older
@@ -65,19 +74,26 @@ support grounds.
    universal fallback (and remains the only path on the original Pixel Watch).
 
 4. **Battery behaviour.** Measure real drain during and around recording; tune the
-   optional max-duration auto-stop default if needed.
+   optional max-duration auto-stop default if needed. *(Still open — needs a
+   long-form recording session and battery telemetry.)*
 
-5. **Haptic feel.** Tune the start (single pulse) and stop (double pulse) patterns
-   by feel — impossible on an emulator (no vibrator). The logic and call path are
-   already in place and fired correctly in testing.
+5. **Haptic feel.** *(2026-06-05: DONE — perceptible on real hardware.)* The
+   initial 60ms/40-60-40ms raw waveforms were inaudible on the Pixel Watch
+   motor. Switched to `VibrationEffect.EFFECT_HEAVY_CLICK` (start) and
+   `EFFECT_DOUBLE_CLICK` (stop) on API 29+, fired with
+   `AudioAttributes.USAGE_ASSISTANCE_SONIFICATION` so DND profiles don't filter
+   them. Confirmed via `vibrate(start) fired` / `vibrate(stop) fired` log lines
+   on every cycle plus user-reported physical feel. Fall-back longer raw
+   waveforms remain for pre-API-29 devices.
 
 ## Optional / parked
 
 - **"notaricus" wake word** — true no-hands activation via on-device keyword
   spotting (e.g. Picovoice Porcupine / openWakeWord). Parked deliberately: the
-  button launch-toggle already delivers eyes-free capture, and an always-on listener
-  is the most battery-expensive, least-emulatable component. Revisit only if no-hands
-  capture proves genuinely needed on the real watch.
+  complication-tap + crown-press model already delivers eyes-free capture, and
+  an always-on listener is the most battery-expensive, least-emulatable
+  component. Revisit only if no-hands capture proves genuinely needed on the
+  real watch.
 
 - **Summarisation / to-do extraction** — explicitly NOT planned. The owner's
   position: summarising is where internalisation happens, so auto-summarising would

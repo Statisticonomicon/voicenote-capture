@@ -33,12 +33,16 @@ a manual import test harness.
 
 Acceptance (see `PHASE1_ACCEPTANCE_TEST.md`):
 - A (phone, mock) PASS · B (phone, real server) PASS · C (watch capture, emulator)
-  PASS · D (watch→phone link) DEFERRED to Phase 2.
+  PASS · D (watch→phone link) PASS on real hardware 2026-06-05.
 - Phone pipeline validated end-to-end on a real phone against the live home server.
 
-### Phase 2 — Real hardware (PENDING — needs the watch)
-Watch→phone link (Section D), hardware-button binding, battery, haptic feel.
-Target: Google Pixel Watch 4. Full detail in `PHASE2_PLAN.md`.
+### Phase 2 — Real hardware (IN PROGRESS)
+Done on the original Pixel Watch (2026-06-05): Section D, watch-face complication
+as launch shortcut, always-start / crown-stop activation, real haptics
+(`EFFECT_HEAVY_CLICK` / `EFFECT_DOUBLE_CLICK`). Still open: real-world battery
+measurement. Parked until the Pixel Watch 4 upgrade: direct hardware-button
+binding via the side button (no app change needed at that point). Full detail in
+`PHASE2_PLAN.md`.
 
 ### Phase 3 — Polish (future)
 Settings UX, error states, broader edge cases; keep docs current.
@@ -51,9 +55,14 @@ Settings UX, error states, broader edge cases; keep docs current.
 - Favicon protocol: N/A (native apps, no web UI).
 
 ## Open items / risks
-- RESOLVED: Phase 0 button-event question (launch-toggle adopted, confirmed in 0.5).
+- RESOLVED: Phase 0 button-event question (launch-toggle adopted, confirmed in 0.5;
+  later superseded by always-start / crown-stop after on-watch testing — see
+  ARCHITECTURE.md).
 - RESOLVED: JDK 21 toolchain (system JDK 21 + `org.gradle.java.home` + `.bashrc`).
 - RESOLVED: cleartext (scoped network-security-config for the Tailscale host).
-- Phase 2: hardware-button binding on the Pixel Watch 4; battery; haptics; Section D.
+- RESOLVED (2026-06-05): Section D (Data Layer link), watch-face complication,
+  always-start / crown-stop activation, real haptics.
+- Phase 2 remaining: real-world battery measurement. Parked for PW4: direct
+  hardware-button binding via the side button.
 - `MAX_RUN_ATTEMPTS=5` also bounds total job duration — adjust for very long jobs.
 - Git remote: deferred, user decision pending.

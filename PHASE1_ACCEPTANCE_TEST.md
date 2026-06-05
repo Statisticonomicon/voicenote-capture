@@ -49,7 +49,11 @@ Log filters:
   Phase 0.5 behaviour).
 - [PASS] Unpaired: VNC-Xfer logged "No reachable phone node" on every stop
   (expected).
-- [N/A] Haptic feel — no vibrator on the emulator; verify on real hardware (Phase 2).
+- [PASS — verified later on real hardware, 2026-06-05] Haptic feel was N/A on
+  the emulator (no vibrator). On the Pixel Watch the initial 60ms raw waveform
+  was inaudible; switched to `VibrationEffect.EFFECT_HEAVY_CLICK` (start) /
+  `EFFECT_DOUBLE_CLICK` (stop) with `USAGE_ASSISTANCE_SONIFICATION` audio
+  attributes — perceptible and DND-resilient.
 
 ## D. The link — watch → phone Data Layer transfer
 - [PASS] Verified on real hardware (2026-06-05): Pixel Watch (`5e654a1e`) paired with

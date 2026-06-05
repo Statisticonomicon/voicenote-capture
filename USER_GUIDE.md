@@ -30,22 +30,33 @@ you process.
    - **Processing endpoint base URL** — your transcription server, e.g.
      `http://<your-tailscale-host>:8457`. Leave **Mock mode ON** until you want to
      use the real server; turn it off once the endpoint is set.
-4. (Phase 2, real watch) Assign a hardware button to launch the watch app, so a
-   press starts/stops recording without using the touchscreen.
+4. On the watch, long-press the watch face → Customize → pick a complication slot
+   → choose **VoiceNote**. This is your one-tap shortcut to start a recording from
+   any watch face. (On the original Pixel Watch the single crown isn't
+   user-mappable to a third-party app, so the complication is the canonical
+   launch path. The Pixel Watch 4's second side button will eventually allow a
+   direct hardware-button launch as an additional option.)
 
 ---
 
 ## Capturing a note
 
-1. Press your assigned watch button — or tap the on-screen **Tap toggle** — once.
-   A single buzz means recording started; the screen can stay off.
-2. Speak.
-3. Press again. A double buzz means stopped. The audio is sent to your phone.
-4. The phone transcribes it (via your server) and writes a Markdown note into your
-   vault folder, named `note-<timestamp>.md` (imports are `imported-<timestamp>.md`).
+1. **Tap the VoiceNote complication** on your watch face. A single firm thump
+   confirms recording started; the screen can stay off after that.
+2. **Speak.**
+3. **Press the crown** to go back to the watch face. A double thump confirms the
+   recording stopped. The audio is sent to your phone.
+4. The phone transcribes it (via your server) and writes a Markdown note into
+   your vault folder, named `note-<timestamp>.md` (imports are
+   `imported-<timestamp>.md`).
 
-You don't need to look at the watch during any of this — the haptics confirm start
-and stop.
+You don't need to look at the watch during any of this — the haptics confirm
+start and stop. Every complication tap is a fresh recording (it doesn't toggle),
+so the flow is always: tap → speak → crown.
+
+The on-screen **Tap toggle** inside the app is still there as a fallback in case
+a watch face has no spare complication slot — it toggles start/stop locally
+without finishing the activity.
 
 ---
 
@@ -79,6 +90,12 @@ and stop.
 - **Note contains placeholder/MOCK text when you wanted a real transcript.** Mock
   mode is still on, or the endpoint base URL isn't set.
 - **Recording didn't start.** Re-check the Microphone permission on the watch.
+- **No haptic on start/stop.** Check the watch's vibration setting and Do Not
+  Disturb state. The app uses sonification audio attributes that survive most
+  DND modes, but a "Total silence" / "Bedtime mode" can still suppress them.
+- **Crown press didn't stop the recording.** The crown press triggers
+  `onUserLeaveHint`. If you swiped away with a gesture instead of using the
+  crown, recording continues by design (treated as a transient nav).
 - **Long recording seems stuck.** Large files take time; the phone polls the server
   repeatedly and resumes if interrupted. Give it time before assuming failure.
 

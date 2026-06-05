@@ -111,31 +111,33 @@ each:
    whisper server). Resilience check: stop the server, import (worker logs a retry,
    no note), restart the server, the note appears on retry.
 
-### Section C — watch alone, on the Wear emulator
-1. Install `:wear` on the Wear emulator; grant mic + notification permissions.
-2. Use the on-screen **Tap toggle**: STOPPED→RECORDING (start haptic + FGS
-   notification), speak, tap again RECORDING→STOPPED (stop haptic; a non-zero file
-   is logged).
-3. Launch-toggle check: `adb -s <emu> shell am start -n
-   com.notaricus.voicenote/.WearMainActivity` twice — each re-launch toggles via
-   `onNewIntent`.
+### Section C — watch alone
+1. Install `:wear` on the watch (or Wear emulator); grant mic + notification
+   permissions.
+2. **In-app toggle (always available):** open the app and use the on-screen
+   **Tap toggle**: STOPPED→RECORDING (start haptic + FGS notification), speak,
+   tap again RECORDING→STOPPED (stop haptic; a non-zero file is logged).
+3. **External-launch always-start check (real device only — the activation model
+   revised in Phase 2):** `adb -s <serial> shell am start -n
+   com.notaricus.voicenote/.WearMainActivity` always starts a new recording (no
+   toggle); `adb -s <serial> shell am force-stop com.notaricus.voicenote` (or, on
+   the watch, a crown press) ends the session via `onUserLeaveHint` → `finish()`,
+   producing `vibrate(stop) fired` and `stop -> STOPPED via user-leave` log lines.
 4. With no phone paired, `VNC-Xfer` logs "No reachable phone node" (expected).
-   Note: haptics are a no-op on an emulator (no vibrator) — that part is verifiable
-   only on real hardware.
+   On an emulator, haptics are a no-op (no vibrator); verifiable only on real
+   hardware (done 2026-06-05 with `EFFECT_HEAVY_CLICK` / `EFFECT_DOUBLE_CLICK`).
 
-   **Operational gotcha:** `am start ...WearMainActivity` is NOT a neutral foreground
-   action — it re-fires `onNewIntent` and toggles recording. To bring the app forward
-   WITHOUT toggling, use `KEYCODE_WAKEUP` + `wm dismiss-keyguard` only.
-
-### Section D — watch → phone link (DEFERRED to Phase 2)
-Requires a watch paired to a phone and the Wear Data Layer transfer. Not runnable in
-this environment (no phone system image; GUI-only Wear pairing). Run on the real
-watch + phone in Phase 2.
+### Section D — watch → phone link
+*(2026-06-05: PASS on real hardware — see `PHASE1_ACCEPTANCE_TEST.md`. Originally
+deferred because the emulator had no phone system image and the Wear pairing
+assistant is GUI-only.)*
 
 ---
 
 ## What "Phase 1 pass" means
 
 A, B, C pass → the pipeline is proven in its parts: capture (C), and
-transfer→transcribe→vault against the real server (B). D (the seam joining them) and
-the hardware items are Phase 2, on the physical watch.
+transfer→transcribe→vault against the real server (B). D was the original
+Phase 2 seam; as of 2026-06-05 it is also verified on real hardware along with
+the complication-driven activation model, the always-start / crown-stop UX, and
+real haptics. Remaining Phase 2 item: long-form battery measurement.

@@ -4,34 +4,40 @@ Wrist-driven, eyes-free voice note capture that lands transcripts in your Obsidi
 vault — privately, through your own server, with no cloud service and no
 subscription.
 
-**Status:** Phase 1 prototype, with Section D (watch→phone link) and the watch-face
-complication launch shortcut now verified on real hardware. The remaining Phase 2
-items — battery measurement, haptic tuning, and (parked until the PW4 upgrade)
-direct hardware-button binding — still need the physical watch in hand.
+**Status:** Phase 1 prototype, with Section D (watch→phone link), the watch-face
+complication launch shortcut, the always-start / crown-stop activation model,
+and real haptics now all verified on real hardware. The remaining Phase 2 item
+is real-world battery measurement; direct hardware-button binding is parked
+until the PW4 upgrade.
 
 ---
 
 ## What it does
 
-Tap a single shortcut on the watch face, speak, tap to stop. The watch hands the
-audio to your phone over the Wear Data Layer; the phone uploads it to your
-transcription endpoint (your home server, reached over Tailscale), polls until
-transcription finishes, downloads the text, and writes it as a Markdown note into
-your Obsidian vault. The thinking — summarising, connecting — is left to you by
-design; the tool only captures and transcribes.
+Tap the VoiceNote complication on your watch face → speak → press the crown to
+stop and go home. The watch hands the audio to your phone over the Wear Data
+Layer; the phone uploads it to your transcription endpoint (your home server,
+reached over Tailscale), polls until transcription finishes, downloads the text,
+and writes it as a Markdown note into your Obsidian vault. The thinking —
+summarising, connecting — is left to you by design; the tool only captures and
+transcribes.
 
 Two cooperating apps in one Gradle project:
 
-- **`:wear`** — the watch app. Single-press launch-toggle activation (first press
-  starts recording, each subsequent press toggles stop/start, via
-  onCreate/onNewIntent under `launchMode=singleTask`); distinct start/stop haptics;
-  screen-off capture. The launch press itself is delivered either by a hardware
-  button mapped to the app (where the watch hardware allows it) or by a
-  watch-face **complication** (`VoiceNoteComplicationService`) — the latter is
-  the canonical path on the original Pixel Watch, whose single crown isn't
-  user-mappable to a third-party launch. Recording runs in a microphone foreground
-  service (mandatory on Android 14+). The finished file is sent to the phone via
-  `ChannelClient`. On-screen tap is a guaranteed fallback control.
+- **`:wear`** — the watch app. Two-input activation model: a **complication tap**
+  always starts a recording (idempotent — onCreate / onNewIntent both route to
+  the same `ensureRecording` path, and `finish()` after every stop guarantees the
+  next launch is a clean onCreate); a **crown press** (via `onUserLeaveHint`)
+  always stops and exits. Screen timeout still keeps capture alive (we use
+  `onUserLeaveHint`, not onStop, so only deliberate user navigation triggers the
+  stop). Haptic confirmation on every transition (`EFFECT_HEAVY_CLICK` start /
+  `EFFECT_DOUBLE_CLICK` stop, with `USAGE_ASSISTANCE_SONIFICATION` audio
+  attributes so DND profiles don't suppress them). The complication
+  (`VoiceNoteComplicationService`) is the canonical launch path on the original
+  Pixel Watch, whose single crown isn't user-mappable to a third-party launch.
+  Recording itself runs in a microphone foreground service (mandatory on
+  Android 14+); the finished file is sent to the phone via `ChannelClient`. The
+  on-screen tap is the in-app toggle fallback.
 - **`:mobile`** — the phone companion. Receives the audio, saves a raw copy to a
   chosen folder, then (via WorkManager, with retry) runs the asynchronous
   transcription protocol against the endpoint and writes the returned text into the
@@ -65,10 +71,16 @@ Verified on real hardware (Phase 2 work, done 2026-06-05):
   shortcut from any watch face that supports `MONOCHROMATIC_IMAGE` / `SHORT_TEXT` /
   `SMALL_IMAGE` complication types. Replaces the hardware-button approach on the
   original Pixel Watch (single crown, not user-mappable to a third-party launch).
+- Always-start / crown-stop activation — three full cycles in the watch log
+  showed every complication tap firing onCreate→`ensureRecording`→
+  `vibrate(start)`, every crown press firing onUserLeaveHint→`stopAndExit`→
+  `vibrate(stop)`, no toggle drift.
+- Haptic feel — `EFFECT_HEAVY_CLICK` / `EFFECT_DOUBLE_CLICK` are perceptible on
+  the Pixel Watch motor (the original 60ms waveform was not).
 
 Still deferred to Phase 2 (require the physical watch):
 
-- Real battery behaviour and haptic feel (an emulator has no vibrator).
+- Real battery behaviour during sustained recording.
 - **Parked** — direct hardware-button binding: the Pixel Watch 4 ships with a
   second programmable side button; when the owner upgrades, the watch-side OEM
   button mapping becomes available and the complication becomes the universal
@@ -95,10 +107,13 @@ procedure. In brief:
 
 ## Features
 
-- Single-press launch-toggle activation (hardware button where available, watch-face
-  complication on watches without a mappable button); on-screen tap fallback.
+- Complication-tap **always-start** + crown-press **always-stop** activation;
+  on-screen tap is the in-app toggle fallback.
 - Microphone foreground service with correct Android-14+ type and permissions.
-- Distinct start/stop haptics; screen-off capture.
+- Distinct start (`EFFECT_HEAVY_CLICK`) / stop (`EFFECT_DOUBLE_CLICK`) haptics
+  with sonification audio attributes (survive DND); screen-off capture
+  (recording continues through screen timeout — only user-initiated navigation
+  via the crown stops it).
 - Optional max-duration auto-stop (off by default).
 - Wear Data Layer file transfer (`ChannelClient`) keyed by a shared capability.
 - Phone: SAF folder selection for raw audio and vault (no broad storage permission).

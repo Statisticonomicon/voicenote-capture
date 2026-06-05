@@ -1,6 +1,8 @@
 # VoiceNote Capture — Architecture
 
-Status: Phase 1 prototype, phone pipeline validated end-to-end.
+Status: Phase 1 prototype + the Phase 2 hardware items (watch→phone link,
+complication launch, always-start / crown-stop activation, real haptics) all
+verified on real hardware as of 2026-06-05.
 
 ## Overview
 
@@ -14,21 +16,43 @@ scope for this repo.
 ## Components & responsibilities
 
 ### Watch app (`:wear`)
-- **Activation:** single hardware button via the launch path. `launchMode=singleTask`
-  means first launch hits `onCreate` (start recording); each re-launch hits
-  `onNewIntent` (toggle stop/start). A hardware button assigned to the app produces
-  these launches. On-screen tap is the guaranteed fallback. (Confirmed in spike
-  Phase 0.5; Phase 0 had disproved intercepting hardware key events directly.)
+- **Activation (revised in Phase 2 after on-watch testing):** complication tap
+  always starts a recording; crown press always stops and exits. `launchMode=
+  singleTask` + `finish()`-on-stop means every launch is a clean `onCreate` →
+  `ensureRecording`; `RecordingService.ACTION_START` is idempotent so the same
+  path is used whether the app was cold or warm. The crown press is caught via
+  `onUserLeaveHint` (deliberately, so that screen timeout — which does not fire
+  this hook — keeps capture running). The original launch-toggle model (Phase
+  0.5 spike: onCreate=start, onNewIntent=toggle) was abandoned after real-watch
+  testing showed toggle-drift when the activity outlived a session. Background:
+  Phase 0 had disproved intercepting hardware key events directly; Phase 1
+  shipped the toggle model on an emulator; Phase 2 replaced it with this
+  always-start / crown-stop model and added a watch-face complication
+  (`VoiceNoteComplicationService`) as the canonical launch path on the original
+  Pixel Watch (whose single crown is not user-mappable to a third-party app).
+- **Launch surfaces:** the watch-face complication (preferred — one tap from
+  any face with a spare slot), the launcher icon in the app drawer, and the
+  PW4 side button once the owner upgrades (no app change required; OEM
+  button-mapping setting). The in-app on-screen tap remains the fallback toggle
+  control.
 - **Capture:** `RecordingService`, a microphone foreground service (mandatory on
   Android 14+, declared type `microphone` + matching permission). Records mono
-  16 kHz AAC/m4a to local storage. Optional max-duration auto-stop (off by default).
-  Started only from the foreground activity — a mic FGS cannot start from the
-  background (RECORD_AUDIO is while-in-use).
-- **Haptics:** distinct start (single pulse) / stop (double pulse); screen stays off.
+  16 kHz AAC/m4a to local storage. Optional max-duration auto-stop (off by
+  default). Started only from the foreground activity — a mic FGS cannot start
+  from the background (RECORD_AUDIO is while-in-use).
+- **Haptics:** `VibrationEffect.EFFECT_HEAVY_CLICK` on start, `EFFECT_DOUBLE_CLICK`
+  on stop, fired with `AudioAttributes.USAGE_ASSISTANCE_SONIFICATION` so DND /
+  silent profiles don't filter them. Predefined effects map to the device's
+  tuned vibrator profile — perceptible on the Pixel Watch motor; the earlier
+  60ms raw waveform was not. Pre-API-29 fall-back is a longer one-shot /
+  waveform. Screen stays off during the recording session.
 - **Transfer:** `WearTransfer` sends the finished file to the phone via the Wear
-  Data Layer `ChannelClient`, locating the phone by a declared capability
-  (`voicenote_phone`). With no phone reachable it logs and leaves the file on the
-  watch.
+  Data Layer `ChannelClient`, locating the phone by a capability
+  (`voicenote_phone`) registered at runtime in :mobile via
+  `CapabilityClient.addLocalCapability` (manifest meta-data was observed being
+  silently ignored by GMS Wearable on the test phone — switched to dynamic
+  registration). With no phone reachable, `WearTransfer` logs and leaves the
+  file on the watch.
 
 ### Phone app (`:mobile`)
 - **Receive:** `PhoneListenerService` (a `WearableListenerService`) receives the
@@ -64,11 +88,11 @@ GET  {base}/download/{job_id}?format=plain                  -> plain transcript 
 ```mermaid
 flowchart LR
   subgraph Watch[Wear OS watch app]
-    A[Button press: launch] --> T{First launch?}
-    T -->|yes onCreate| R[Start recording]
-    T -->|re-launch onNewIntent| G[Toggle stop/start]
-    R --> X[Transfer via Data Layer ChannelClient]
-    G --> X
+    A[Complication tap] --> R[ensureRecording: start recording + haptic]
+    R --> W[Screen-off capture continues]
+    W --> C[Crown press: onUserLeaveHint]
+    C --> S[stopAndExit: stop recording + haptic + finish]
+    S --> X[Transfer via Data Layer ChannelClient]
   end
   X -->|Bluetooth / Wi-Fi over the tailnet| P[PhoneListenerService receives]
   subgraph Phone[Android companion app]
@@ -98,8 +122,8 @@ flowchart LR
 
 ## Settings
 
-- Activation: single-button launch-toggle (fixed); on-screen tap fallback always
-  available.
+- Activation: complication-tap always-start + crown-press always-stop; on-screen
+  tap is the in-app toggle fallback.
 - Max-duration auto-stop (watch): off by default; minutes when on.
 - Audio: mono 16 kHz AAC default.
 - Raw-audio folder (phone, SAF).
@@ -121,7 +145,10 @@ flowchart LR
 
 ## Open items
 
-- Watch→phone Data Layer transfer is implemented but untested on hardware (Phase 2).
 - Final audio format vs ASR compatibility (faster-whisper accepts the m4a fine in
-  testing).
-- Phase 2 hardware items: button binding, battery, haptic feel.
+  testing; a few short / quiet takes have come back with empty transcripts —
+  needs a separate investigation against the server, not the watch link).
+- Remaining Phase 2 hardware item: real-world battery measurement during
+  sustained recording. (Watch→phone Data Layer link, complication, always-start /
+  crown-stop activation, and real haptics are all verified on hardware
+  2026-06-05; direct hardware-button binding is parked for the PW4 upgrade.)
