@@ -37,7 +37,11 @@ Two cooperating apps in one Gradle project:
   Pixel Watch, whose single crown isn't user-mappable to a third-party launch.
   Recording itself runs in a microphone foreground service (mandatory on
   Android 14+); the finished file is sent to the phone via `ChannelClient`. The
-  on-screen tap is the in-app toggle fallback.
+  on-screen UI is the Option A "Pure Minimal" recording screen: blinking red
+  status dot + "RECORDING" label, hero m:ss timer with tabular digits, live
+  mic-amplitude waveform, and a quiet "Press crown to stop" hint. There is no
+  idle / stopped screen variant — every entry surface (complication, launcher,
+  future PW4 side button) reaches the same recording state.
 - **`:mobile`** — the phone companion. Receives the audio, saves a raw copy to a
   chosen folder, then (via WorkManager, with retry) runs the asynchronous
   transcription protocol against the endpoint and writes the returned text into the
@@ -108,7 +112,9 @@ procedure. In brief:
 ## Features
 
 - Complication-tap **always-start** + crown-press **always-stop** activation;
-  on-screen tap is the in-app toggle fallback.
+  no on-screen toggle button (single-screen "Pure Minimal" recording UI).
+- Live mic-amplitude waveform + monospaced m:ss timer + blinking status dot on
+  a pure-black background; nothing clips the round edge.
 - Microphone foreground service with correct Android-14+ type and permissions.
 - Distinct start (`EFFECT_HEAVY_CLICK`) / stop (`EFFECT_DOUBLE_CLICK`) haptics
   with sonification audio attributes (survive DND); screen-off capture

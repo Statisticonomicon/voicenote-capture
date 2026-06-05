@@ -114,15 +114,15 @@ each:
 ### Section C — watch alone
 1. Install `:wear` on the watch (or Wear emulator); grant mic + notification
    permissions.
-2. **In-app toggle (always available):** open the app and use the on-screen
-   **Tap toggle**: STOPPED→RECORDING (start haptic + FGS notification), speak,
-   tap again RECORDING→STOPPED (stop haptic; a non-zero file is logged).
-3. **External-launch always-start check (real device only — the activation model
-   revised in Phase 2):** `adb -s <serial> shell am start -n
-   com.notaricus.voicenote/.WearMainActivity` always starts a new recording (no
-   toggle); `adb -s <serial> shell am force-stop com.notaricus.voicenote` (or, on
-   the watch, a crown press) ends the session via `onUserLeaveHint` → `finish()`,
-   producing `vibrate(stop) fired` and `stop -> STOPPED via user-leave` log lines.
+2. **Launch starts recording (no toggle button):** since the Phase-2 redesign,
+   the activity has no idle state — every external launch starts a recording.
+   On the watch, tap the VoiceNote complication; on emulator/ADB, run
+   `adb -s <serial> shell am start -n com.notaricus.voicenote/.WearMainActivity`.
+   The screen renders RECORDING + a counting m:ss timer + a live waveform.
+3. **End the session:** on the watch, press the crown (fires `onUserLeaveHint`
+   → `stopAndExit` → finish). On ADB, `adb -s <serial> shell am force-stop
+   com.notaricus.voicenote` reaches the same outcome. Expected log lines:
+   `vibrate(stop) fired` and `stop -> STOPPED via user-leave`.
 4. With no phone paired, `VNC-Xfer` logs "No reachable phone node" (expected).
    On an emulator, haptics are a no-op (no vibrator); verifiable only on real
    hardware (done 2026-06-05 with `EFFECT_HEAVY_CLICK` / `EFFECT_DOUBLE_CLICK`).

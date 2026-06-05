@@ -61,9 +61,12 @@ support grounds.
    onNewIntent) ALWAYS starts a recording; crown press (`onUserLeaveHint`)
    ALWAYS stops and `finish()`'es the activity. Every launch is then a clean
    `onCreate` → `ensureRecording`. Idempotent in both directions
-   (`RecordingService.ACTION_START` no-ops if already recording). The on-screen
-   tap inside the activity remains a toggle fallback. See README / ARCHITECTURE
-   for the current model.
+   (`RecordingService.ACTION_START` no-ops if already recording). The recording
+   screen was subsequently redesigned per
+   `design_handoff_recording_screen/App screen instructions.md` ("Pure Minimal"
+   single-screen layout); the on-screen toggle button was removed in that
+   redesign — every launch surface goes through the same activation path now,
+   so a fallback button no longer adds anything. See README / ARCHITECTURE.
 
    **Parked enhancement — Pixel Watch 4 side button.** The PW4 adds a second
    programmable side button alongside the crown. On that hardware the older

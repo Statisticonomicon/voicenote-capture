@@ -54,9 +54,14 @@ You don't need to look at the watch during any of this — the haptics confirm
 start and stop. Every complication tap is a fresh recording (it doesn't toggle),
 so the flow is always: tap → speak → crown.
 
-The on-screen **Tap toggle** inside the app is still there as a fallback in case
-a watch face has no spare complication slot — it toggles start/stop locally
-without finishing the activity.
+The on-watch screen is intentionally minimal: a red blinking dot + "RECORDING"
+label at the top, a large monospaced m:ss timer in the middle, a live red
+waveform reacting to your voice underneath, and a "Press crown to stop" hint
+at the bottom. There is no on-screen stop button — the crown is the only stop
+control (which is what you want one-handed). If the screen times out
+mid-recording, the recording keeps running; pressing the crown again wakes the
+screen without stopping it. A second crown press, with the screen already on
+and the recording screen visible, is what actually stops the session.
 
 ---
 

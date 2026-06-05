@@ -33,8 +33,18 @@ scope for this repo.
 - **Launch surfaces:** the watch-face complication (preferred — one tap from
   any face with a spare slot), the launcher icon in the app drawer, and the
   PW4 side button once the owner upgrades (no app change required; OEM
-  button-mapping setting). The in-app on-screen tap remains the fallback toggle
-  control.
+  button-mapping setting). There is no on-screen toggle button; the redesigned
+  recording screen has no idle / stopped state and is shown only while
+  recording.
+- **Recording UI:** Option A "Pure Minimal" handoff
+  (`design_handoff_recording_screen/`): pure-black background, blinking red
+  status dot + uppercase "RECORDING" label at top, hero m:ss timer (tabular
+  digits) centered, live mic-amplitude waveform via `WaveformView` (40 rounded
+  red bars, edge-faded, fed by `RecordingService` sampling
+  `MediaRecorder.getMaxAmplitude()` every 40 ms through a `RecordingState`
+  singleton), and a "Press crown to stop" hint at the bottom. Dot blink and
+  waveform / timer ticks run only between onResume / onPause so screen-off
+  stops the UI work without stopping the capture.
 - **Capture:** `RecordingService`, a microphone foreground service (mandatory on
   Android 14+, declared type `microphone` + matching permission). Records mono
   16 kHz AAC/m4a to local storage. Optional max-duration auto-stop (off by
@@ -122,8 +132,8 @@ flowchart LR
 
 ## Settings
 
-- Activation: complication-tap always-start + crown-press always-stop; on-screen
-  tap is the in-app toggle fallback.
+- Activation: complication-tap always-start + crown-press always-stop. No
+  on-screen toggle.
 - Max-duration auto-stop (watch): off by default; minutes when on.
 - Audio: mono 16 kHz AAC default.
 - Raw-audio folder (phone, SAF).
