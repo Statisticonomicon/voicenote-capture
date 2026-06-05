@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.media.AudioAttributes
 import android.os.Build
 import android.os.Bundle
 import android.os.VibrationEffect
@@ -14,19 +15,25 @@ import android.widget.Button
 import android.widget.TextView
 
 /**
- * Watch entry point and activation controller (Phase 1 prototype).
+ * Watch entry point and activation controller.
  *
- * Activation model (confirmed in Phase 0.5): launchMode=singleTask.
- *  - First launch  -> onCreate    -> start recording.
- *  - Re-launch     -> onNewIntent -> toggle stop/start.
- * A hardware button assigned to this app produces these launches; an on-screen
- * button is the guaranteed fallback.
+ * Activation model (revised in Phase 2, after on-watch testing):
+ *  - **Complication tap / hardware launch -> always start recording.**
+ *    Both onCreate and onNewIntent route to [ensureRecording]; if a session is
+ *    already in progress the start is a no-op (RecordingService.ACTION_START is
+ *    idempotent). This avoids the toggle-drift problem we saw on Pixel Watch when
+ *    the activity's `recording` mirror got out of sync with the service.
+ *  - **Crown press (onUserLeaveHint) -> always stop + finish.** The crown is the
+ *    only "out" from the activity on a single-button Pixel Watch and the user's
+ *    intent is unambiguous: "I'm done." onUserLeaveHint fires only on
+ *    user-initiated navigation, so screen timeout still keeps capture going.
+ *    finish() ensures the next launch is a fresh onCreate, not a stale onNewIntent.
+ *  - **On-screen tap** stays as an in-app toggle fallback (guaranteed control if
+ *    a watch face has no spare complication slot).
  *
  * Recording itself runs in [RecordingService] (a microphone foreground service),
- * which is mandatory on Android 14+ for capture that continues with the screen
- * off. The service must be started from here (the foreground), because
- * RECORD_AUDIO is a while-in-use permission and a mic FGS cannot be started from
- * the background.
+ * mandatory on Android 14+ for screen-off capture. RECORD_AUDIO is a while-in-use
+ * permission, so the service must be started from the foreground (here).
  */
 class WearMainActivity : Activity() {
 
@@ -48,44 +55,65 @@ class WearMainActivity : Activity() {
         statusView = findViewById(R.id.statusView)
         hintView = findViewById(R.id.hintView)
         tapToggle = findViewById(R.id.tapToggle)
-        tapToggle.setOnClickListener { onActivationTrigger("tap") }
+        tapToggle.setOnClickListener { onTapToggle() }
 
-        // First launch is an intent to start. Ensure permissions, then begin.
-        ensurePermissionsThen { onActivationTrigger("launch:onCreate") }
+        ensurePermissionsThen { ensureRecording("onCreate") }
     }
 
-    /** Re-launch (second+ button press) is delivered here under singleTask. */
+    /** Re-launch (complication tap while activity is alive) is delivered here under singleTask. */
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        onActivationTrigger("relaunch:onNewIntent")
+        setIntent(intent)
+        ensurePermissionsThen { ensureRecording("onNewIntent") }
     }
 
     /**
-     * Central toggle. Starts recording if stopped, stops if recording.
-     * Distinct haptics on each transition; screen content stays minimal.
+     * User-initiated navigation away (crown press / system home gesture).
+     * Does NOT fire on screen timeout or transient overlays, so screen-off capture
+     * continues to work as designed.
      */
-    private fun onActivationTrigger(source: String) {
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        stopAndExit("user-leave")
+    }
+
+    private fun onTapToggle() {
+        if (recording) stopAndExit("tap") else ensureRecording("tap")
+    }
+
+    private fun ensureRecording(source: String) {
         if (!hasAllPermissions()) {
-            // If the user hasn't granted yet, request and bail; they re-press after granting.
-            ensurePermissionsThen { /* user re-triggers */ }
+            ensurePermissionsThen { ensureRecording(source) }
             return
         }
-        recording = !recording
         if (recording) {
-            startRecording()
-            vibrate(start = true)
-        } else {
+            Log.d(TAG, "already recording (via $source)")
+            render()
+            return
+        }
+        startRecording()
+        vibrate(start = true)
+        recording = true
+        render()
+        Log.d(TAG, "start -> RECORDING via $source")
+    }
+
+    private fun stopAndExit(source: String) {
+        if (recording) {
             stopRecording()
             vibrate(start = false)
+            recording = false
+            Log.d(TAG, "stop -> STOPPED via $source")
+        } else {
+            Log.d(TAG, "exit (not recording) via $source")
         }
-        render()
-        Log.d(TAG, "toggle -> ${if (recording) "RECORDING" else "STOPPED"} via $source")
+        // Always finish so the next launch is a clean onCreate -> ensureRecording.
+        // Prevents the toggle-drift seen when the activity stayed alive between sessions.
+        finish()
     }
 
     private fun startRecording() {
         val i = Intent(this, RecordingService::class.java).setAction(RecordingService.ACTION_START)
-        // startForegroundService is correct from a foreground activity; the service
-        // promotes itself with startForeground() + microphone type immediately.
         startForegroundService(i)
     }
 
@@ -131,16 +159,44 @@ class WearMainActivity : Activity() {
         pendingAfterPerms = null
     }
 
-    // ---- Haptics: start = single pulse, stop = double pulse ----
+    // ---- Haptics ----
+    //
+    // Predefined effects (EFFECT_HEAVY_CLICK / EFFECT_DOUBLE_CLICK) on API 29+ map
+    // to the device's tuned vibrator profile and are the most reliably perceptible
+    // on small watch motors. Below API 29, fall back to longer raw pulses
+    // (the original 60ms pattern was inaudible on the Pixel Watch motor).
+    //
+    // USAGE_ASSISTANCE_SONIFICATION audio attributes mark this as an interactive
+    // confirmation tone so it survives most do-not-disturb / silent-mode filters.
 
     private fun vibrate(start: Boolean) {
-        val pattern = if (start) longArrayOf(0, 60) else longArrayOf(0, 40, 60, 40)
         val v = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             (getSystemService(VIBRATOR_MANAGER_SERVICE) as? VibratorManager)?.defaultVibrator
         } else {
             @Suppress("DEPRECATION") getSystemService(VIBRATOR_SERVICE) as? Vibrator
-        } ?: return
-        try { v.vibrate(VibrationEffect.createWaveform(pattern, -1)) }
-        catch (t: Throwable) { Log.w(TAG, "vibrate failed: ${t.message}") }
+        }
+        if (v == null || !v.hasVibrator()) {
+            Log.w(TAG, "vibrate(${if (start) "start" else "stop"}): no usable vibrator")
+            return
+        }
+        val effect = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            VibrationEffect.createPredefined(
+                if (start) VibrationEffect.EFFECT_HEAVY_CLICK
+                else VibrationEffect.EFFECT_DOUBLE_CLICK
+            )
+        } else {
+            if (start) VibrationEffect.createOneShot(180L, VibrationEffect.DEFAULT_AMPLITUDE)
+            else VibrationEffect.createWaveform(longArrayOf(0, 180, 100, 180), -1)
+        }
+        val attrs = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        try {
+            v.vibrate(effect, attrs)
+            Log.d(TAG, "vibrate(${if (start) "start" else "stop"}) fired")
+        } catch (t: Throwable) {
+            Log.w(TAG, "vibrate failed: ${t.message}")
+        }
     }
 }

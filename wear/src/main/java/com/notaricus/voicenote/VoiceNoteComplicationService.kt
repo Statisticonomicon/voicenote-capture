@@ -43,7 +43,9 @@ class VoiceNoteComplicationService : SuspendingComplicationDataSourceService() {
         val tap = launchPendingIntent()
         val label = PlainComplicationText.Builder(getString(R.string.complication_label)).build()
         val description = PlainComplicationText.Builder(getString(R.string.complication_description)).build()
-        val iconRes = Icon.createWithResource(this, R.drawable.ic_voicenote_mic)
+        // Use the app launcher icon so the complication visually matches the app.
+        // For monochrome slots the system will tint it (intentional - silhouette).
+        val iconRes = Icon.createWithResource(this, R.mipmap.ic_launcher)
         val mono = MonochromaticImage.Builder(iconRes).build()
 
         return when (type) {

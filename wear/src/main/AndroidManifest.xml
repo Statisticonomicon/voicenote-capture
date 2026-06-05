@@ -57,7 +57,7 @@
         <service
             android:name=".VoiceNoteComplicationService"
             android:exported="true"
-            android:icon="@drawable/ic_voicenote_mic"
+            android:icon="@mipmap/ic_launcher"
             android:label="@string/complication_label"
             android:permission="com.google.android.wearable.permission.BIND_COMPLICATION_PROVIDER">
             <intent-filter>
