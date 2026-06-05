@@ -79,10 +79,18 @@ scope for this repo.
     the user's own API key. No job_id, no polling.
   Either path's text is then written into the user-chosen Obsidian vault folder
   (SAF). Mock mode short-circuits both providers and writes canned text.
-- **Settings:** `SettingsActivity` + `Settings` — provider choice, endpoint base
-  URL + auth token (self-hosted), OpenAI API key (BYOK), mock mode (default OFF
-  for new installs in Phase 2; was default ON during Phase 1 emulator dev), raw
-  + vault folders (SAF tree URIs with persisted permission).
+- **Settings UI:** `SettingsActivity` + `Settings` — provider choice, endpoint
+  base URL + auth token (self-hosted), OpenAI API key (BYOK), mock mode
+  (default OFF for new installs in Phase 2; was default ON during Phase 1
+  emulator dev), raw + vault folders (SAF tree URIs with persisted permission).
+  Visual layer redesigned per `design_handoff_companion_app/` ("Pure Minimal" —
+  same design language as the watch redesign): pure-black, dark grouped cards
+  with hairline borders, single red accent on the radio / save / switch /
+  brand glyph; conditional provider config card (progressive disclosure); SAF
+  URIs displayed as friendly `…/<parent>/<leaf>` with the leaf coloured
+  red-soft instead of the raw `content://…` URI; mock-mode is a switch (was a
+  checkbox before the redesign); Save button briefly turns green with
+  "Saved ✓" on tap.
 
 ### Transcription endpoint (separate project, out of scope here)
 - faster-whisper Flask server in Docker; reached over Tailscale at a stable MagicDNS

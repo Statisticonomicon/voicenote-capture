@@ -231,12 +231,18 @@ wear/                          watch module
 mobile/                        phone module
   src/main/AndroidManifest.xml   listener service, capability advert, NSC reference
   src/main/java/com/notaricus/voicenote/
-    SettingsActivity.kt          settings UI + SAF pickers + manual import test
-    Settings.kt                  prefs + SAF tree URIs
+    SettingsActivity.kt          redesigned settings UI (Option A "Pure Minimal")
+                                   + SAF pickers + manual import test
+    Settings.kt                  prefs + SAF tree URIs (provider, endpoint,
+                                   tokens, vault/raw folders, mock-mode)
     PhoneListenerService.kt      receives audio over the Data Layer
-    ProcessWorker.kt             async upload/poll/download, writes note to vault
-  src/main/res/xml/network_security_config.xml   scoped cleartext
-  src/main/res/                  layout, strings, theme, icon, wear_capabilities.xml
+    ProcessWorker.kt             provider-aware: self-hosted async or
+                                   OpenAI Whisper sync; writes note to vault
+  src/main/res/xml/network_security_config.xml   scoped cleartext (self-hosted)
+  src/main/res/                  layout, strings, theme, icon,
+                                   wear_capabilities.xml, design-token colors,
+                                   shape drawables + vector icons + state-list
+                                   animator for the redesigned settings screen
 
 tools/mock_endpoint.py         optional local mock server for network testing
 

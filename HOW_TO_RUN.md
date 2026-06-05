@@ -96,13 +96,16 @@ The full pass/defer record is in `PHASE1_ACCEPTANCE_TEST.md`. Summary of how to 
 each:
 
 > Note: as of Phase 2 the mock-mode default is **OFF** for new installs (was ON
-> during Phase 1 dev). For the mock-mode-based Section A below, you'll need to
-> tick the Mock checkbox in settings before running it.
+> during Phase 1 dev). For the mock-mode-based Section A below, toggle the
+> **Mock mode** switch on inside the redesigned settings screen before running
+> it. (The original checkbox was replaced by a switch in the companion redesign.)
 
 ### Section A — phone alone, mock mode (core pipeline, no watch)
 1. Install `:mobile` on the phone.
 2. Settings: pick a vault folder; leave **Mock mode ON**.
-3. Tap **Import audio file → run pipeline**; pick any audio file.
+3. In the Test card at the bottom, tap **Run pipeline test**; pick any audio
+   file. (This was labelled "Import audio file → run pipeline" before the
+   companion redesign; the underlying handler is unchanged.)
 4. PASS: a Markdown note (mock text) appears in the vault folder.
 
 ### Section B — phone alone, real network leg

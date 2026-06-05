@@ -34,9 +34,10 @@ you process.
      - *OpenAI Whisper (your API key)* — paste your **OpenAI API key** (`sk-…`).
        OpenAI bills your account per minute of audio. Quickest setup, no server to
        maintain, but audio is sent to OpenAI.
-   - **Mock mode** is off by default. Tick it temporarily if you want to verify
-     the watch → phone → vault chain end-to-end without involving a provider —
-     handy for first-run sanity checks. Don't forget to un-tick before real use.
+   - **Mock mode** is off by default. Toggle the Mock-mode switch on
+     temporarily if you want to verify the watch → phone → vault chain
+     end-to-end without involving a provider — handy for first-run sanity
+     checks. Flip it back off before real use.
 4. On the watch, long-press the watch face → Customize → pick a complication slot
    → choose **VoiceNote**. This is your one-tap shortcut to start a recording from
    any watch face. (On the original Pixel Watch the single crown isn't
@@ -85,14 +86,16 @@ and the recording screen visible, is what actually stops the session.
 
 ## Mock mode vs real transcription
 
-- **Mock mode OFF** (default): the phone sends the audio to whichever provider
-  you picked — your self-hosted Whisper server, or OpenAI — and writes the real
-  transcript into the vault. Requires that the provider is reachable (you on the
-  tailnet with your server up, or a valid OpenAI key with quota).
-- **Mock mode ON** (opt-in, was default during Phase 1 development): no network
-  used; the note contains placeholder text marked "MOCK". Useful for confirming
-  the watch → phone → vault chain works before you configure a provider, or for
-  short demos with no transcription cost. Turn it off again before real use.
+- **Mock mode OFF** (default; the Mock-mode switch is left in its grey off
+  position): the phone sends the audio to whichever provider you picked — your
+  self-hosted Whisper server, or OpenAI — and writes the real transcript into
+  the vault. Requires that the provider is reachable (you on the tailnet with
+  your server up, or a valid OpenAI key with quota).
+- **Mock mode ON** (opt-in; flip the switch to the red position; was default
+  during Phase 1 development): no network used; the note contains placeholder
+  text marked "MOCK". Useful for confirming the watch → phone → vault chain
+  works before you configure a provider, or for short demos with no
+  transcription cost. Toggle the switch back off before real use.
 
 ---
 
