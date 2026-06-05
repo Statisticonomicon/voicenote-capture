@@ -1,27 +1,37 @@
 <resources>
     <string name="app_name">Voice Note Companion</string>
+    <string name="settings_subtitle">Settings</string>
 
     <string name="provider_label">Transcription provider</string>
-    <string name="provider_self_hosted">Self-hosted (Whisper server)</string>
-    <string name="provider_openai">OpenAI Whisper (your API key)</string>
+    <string name="provider_self_hosted">Self-hosted</string>
+    <string name="provider_self_hosted_sub">Your own Whisper server</string>
+    <string name="provider_openai">OpenAI Whisper</string>
+    <string name="provider_openai_sub">Uses your API key</string>
 
     <string name="self_hosted_section">Self-hosted endpoint</string>
-    <string name="endpoint_label">Processing endpoint base URL</string>
+    <string name="endpoint_label">Processing endpoint URL</string>
     <string name="endpoint_hint">http://host:8457</string>
-    <string name="token_label">Auth token (optional)</string>
+    <string name="token_label">Auth token</string>
+    <string name="token_optional_tag">· optional</string>
     <string name="token_hint">Bearer token</string>
 
     <string name="openai_section">OpenAI</string>
-    <string name="openai_key_label">OpenAI API key</string>
+    <string name="api_key_label">API key</string>
     <string name="openai_key_hint">sk-…</string>
-    <string name="mock_label">Mock mode (no network; canned transcript)</string>
-    <string name="save">Save settings</string>
-    <string name="pick_raw">Choose raw-audio folder</string>
-    <string name="pick_vault">Choose Obsidian vault folder</string>
-    <string name="folders_fmt">Raw: %1$s\nVault: %2$s</string>
-    <string name="test_section">Test (no watch needed)</string>
-    <string name="import_test">Import audio file → run pipeline</string>
-    <string name="saved">Settings saved</string>
+
+    <string name="storage_section">Storage</string>
+    <string name="raw_folder_title">Raw audio folder</string>
+    <string name="vault_folder_title">Obsidian vault folder</string>
+    <string name="folder_not_set">(not set)</string>
+
+    <string name="save_button">Save settings</string>
+    <string name="save_button_confirmed">Saved ✓</string>
+
+    <string name="test_section">Test · no watch needed</string>
+    <string name="run_test_title">Run pipeline test</string>
+    <string name="mock_title">Mock mode</string>
+    <string name="mock_subtitle">No network · returns a canned transcript</string>
+
     <string name="test_enqueued">Test file enqueued</string>
     <string name="test_failed">Test import failed</string>
 </resources>

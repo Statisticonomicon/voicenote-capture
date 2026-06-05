@@ -1,0 +1,18 @@
+<!--
+    Brand glyph: 6 vertical red bars echoing the watch's recording waveform.
+    Heights from the design tokens: 10, 18, 26, 14, 22, 8 dp; 3dp wide; 3dp
+    gap; bottom-aligned. One vector, 33dp x 26dp. Square ends are fine at
+    this size (1.5dp corner radius would be near-invisible anyway).
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="33dp"
+    android:height="26dp"
+    android:viewportWidth="33"
+    android:viewportHeight="26">
+    <path android:fillColor="#FFFF453A" android:pathData="M0,16 h3 v10 h-3 z" />
+    <path android:fillColor="#FFFF453A" android:pathData="M6,8 h3 v18 h-3 z" />
+    <path android:fillColor="#FFFF453A" android:pathData="M12,0 h3 v26 h-3 z" />
+    <path android:fillColor="#FFFF453A" android:pathData="M18,12 h3 v14 h-3 z" />
+    <path android:fillColor="#FFFF453A" android:pathData="M24,4 h3 v22 h-3 z" />
+    <path android:fillColor="#FFFF453A" android:pathData="M30,18 h3 v8 h-3 z" />
+</vector>

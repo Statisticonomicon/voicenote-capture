@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Selected rows get a faint red tint; un-selected stay transparent (the card
+         background shows through). -->
+    <item android:state_activated="true">
+        <color android:color="@color/vnc_red_row_selected" />
+    </item>
+    <item android:state_selected="true">
+        <color android:color="@color/vnc_red_row_selected" />
+    </item>
+    <item>
+        <color android:color="@android:color/transparent" />
+    </item>
+</selector>

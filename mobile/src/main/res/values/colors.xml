@@ -1,4 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#FF1F1F1F</color>
+
+    <!-- Companion-app design tokens (see design_handoff_companion_app). Same red /
+         ink / muted palette as the wear redesign so the two apps feel like one. -->
+    <color name="vnc_bg">#FF000000</color>
+    <color name="vnc_card">#FF0E0E11</color>
+    <color name="vnc_field">#FF161619</color>
+    <color name="vnc_field_focused">#FF1B1B1F</color>
+    <color name="vnc_border">#12FFFFFF</color> <!-- rgba(255,255,255,0.07) -->
+    <color name="vnc_red">#FFFF453A</color>
+    <color name="vnc_red_soft">#FFFF6961</color>
+    <color name="vnc_red_row_selected">#0FFF453A</color> <!-- ~6%  -->
+    <color name="vnc_red_play_tile">#1FFF453A</color>    <!-- ~12% -->
+    <color name="vnc_ink">#FFF4F5F6</color>
+    <color name="vnc_muted">#FF8B8F96</color>
+    <color name="vnc_dim">#FF5A5E64</color>
+    <color name="vnc_saved_green">#FF1D8A4E</color>
+    <color name="vnc_switch_off_track">#FF2A2A2E</color>
+    <color name="vnc_btn_ink">#FF0A0405</color>
 </resources>

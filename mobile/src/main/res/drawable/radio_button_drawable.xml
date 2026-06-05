@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Custom radio glyph (22dp outer ring + 11dp red inner dot when selected).
+    Replaces the default Material RadioButton button drawable on each row so
+    the visual matches the handoff exactly. State changes are immediate (no
+    spring scale-in - that handoff polish is a Compose-friendly detail; XML
+    state-list drawables don't carry intrinsic animation, and a 0.15s
+    cosmetic isn't worth the custom drawable scaffolding here).
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true">
+        <layer-list>
+            <item>
+                <shape android:shape="oval">
+                    <solid android:color="@android:color/transparent" />
+                    <stroke android:width="2dp" android:color="@color/vnc_red" />
+                    <size android:width="22dp" android:height="22dp" />
+                </shape>
+            </item>
+            <item android:gravity="center">
+                <shape android:shape="oval">
+                    <solid android:color="@color/vnc_red" />
+                    <size android:width="11dp" android:height="11dp" />
+                </shape>
+            </item>
+        </layer-list>
+    </item>
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="@android:color/transparent" />
+            <stroke android:width="2dp" android:color="@color/vnc_dim" />
+            <size android:width="22dp" android:height="22dp" />
+        </shape>
+    </item>
+</selector>
