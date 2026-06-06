@@ -108,6 +108,14 @@ scope for this repo.
   "Export recordings to folder…" (SAF copy of every `filesDir/incoming/*.m4a`
   to a chosen tree), and "Delete all recordings" (confirmation dialog;
   internal copies only).
+
+  Persistence model is mixed-by-design: the Save button commits the provider
+  radio and the three text inputs only (endpoint URL, auth token, OpenAI API
+  key — anything where partial typing would otherwise leak into prefs).
+  Every other control — both folder rows, every switch — persists
+  immediately on interaction (toggle listener or SAF callback). The layout
+  reflects this: Save sits directly under the inputs it owns, not at the
+  bottom of the screen.
   Visual layer redesigned per `design_handoff_companion_app/` ("Pure Minimal" —
   same design language as the watch redesign): pure-black, dark grouped cards
   with hairline borders, single red accent on the radio / save / switch /

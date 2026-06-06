@@ -38,6 +38,13 @@ you process.
      temporarily if you want to verify the watch → phone → vault chain
      end-to-end without involving a provider — handy for first-run sanity
      checks. Flip it back off before real use.
+
+   > **What does the Save settings button actually save?** Only the provider
+   > radio and the three text fields directly above it (endpoint URL, auth
+   > token, OpenAI API key). The button is positioned right under those
+   > inputs for that reason. Every other control on the screen — both folder
+   > rows, every switch — saves itself the instant you touch it; you don't
+   > need to also tap Save.
 4. On the watch, long-press the watch face → Customize → pick a complication slot
    → choose **VoiceNote**. This is your one-tap shortcut to start a recording from
    any watch face. (On the original Pixel Watch the single crown isn't
