@@ -19,6 +19,10 @@
 # personal vault paths — keep local, never publish).
 /state.txt
 
+# Personal-values recovery file (real Tailscale hostname, vault paths,
+# device serials, how-to-restore-after-clone notes). Keep local.
+/MY_LOCAL_VALUES.md
+
 # Secrets and signing material — never commit.
 *.keystore
 *.jks

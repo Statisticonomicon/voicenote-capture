@@ -358,3 +358,87 @@ docs/spikes/                    PHASE0_README.md, PHASE05_HOW_TO_RUN.md (history
 > NOTE: Git commit hashes and any file changes made after the last `state.txt`
 > snapshot are authoritative in the live repository, not in this document. Reconcile
 > the commit list against `git log` before treating this README as final.
+
+---
+
+## License
+
+VoiceNote Capture is licensed under the **PolyForm Noncommercial License 1.0.0**.
+See `LICENSE.md` for the full text.
+
+In plain terms:
+
+- You **may** use, study, modify, and share this software for any
+  **noncommercial** purpose — personal use, hobby projects, self-hosting for
+  yourself or your household, research, education.
+- You **may not** sell it, sell a product or service built on it, or use it for
+  commercial advantage, without a separate commercial licence from the copyright
+  holder.
+- If you share modified copies, you must keep the license, the `NOTICE` file, and
+  the copyright notice intact.
+
+This summary is for convenience only; the `LICENSE.md` text governs.
+
+## Disclaimer
+
+**This software is provided "as is", without warranty of any kind**, express or
+implied, including but not limited to warranties of merchantability, fitness for a
+particular purpose, and non-infringement. To the fullest extent permitted by law,
+the author is **not liable** for any claim, damages, data loss, or other liability
+arising from the software or its use. **You use it, host it, and test it entirely
+at your own risk.**
+
+This is a personal hobby project, shared in the hope it is useful. It is not a
+product, it is not supported, and no fitness for any purpose — including health,
+safety, medical, or any other use — is claimed or implied. Nothing here is
+professional, legal, medical, or security advice.
+
+## Privacy and data
+
+- The author **hosts no server for anyone** and **processes no one else's data**.
+  The author does not operate any service on your behalf and never receives your
+  recordings or transcripts.
+- **Self-hosted provider (default):** your audio and transcripts stay within your
+  own infrastructure (your device, your Whisper server, your Tailscale network).
+  Nothing is sent to the author or any third party.
+- **OpenAI provider (optional, UNTESTED — use and test at your own risk):** if you
+  enable this, your audio is sent to **OpenAI's servers under your own API key**
+  and is subject to **OpenAI's terms and data-use policies**, not the author's.
+  This code path has not been tested against a real OpenAI endpoint; verify it
+  yourself before relying on it. The self-hosted provider keeps audio within your
+  own infrastructure; the OpenAI provider does not.
+- Where your transcripts are written (your Obsidian vault folder) and how that
+  folder is backed up or synced is entirely under your control and your
+  responsibility.
+
+## Security
+
+This is a local-first, self-hosted tool. By design it can be configured to talk to
+your own server over cleartext HTTP **scoped to a Tailscale host** — this is
+intentional, because the Tailscale tunnel provides the transport encryption, and
+the exception is limited to that one host (all other hosts remain HTTPS-only). If
+you change the endpoint to a non-Tailscale or untrusted network, that assumption no
+longer holds and the responsibility is yours. See `SECURITY.md`.
+
+## Trademarks and affiliation
+
+This project is **not affiliated with, endorsed by, or sponsored by** Google
+(Android, Wear OS, Pixel Watch), OpenAI, Obsidian, Tailscale, or any other company.
+All trademarks, product names, and company names are the property of their
+respective owners and are used only to describe interoperability ("works with"),
+not to imply any endorsement.
+
+## Contributions
+
+By submitting a contribution (pull request, patch, or other change) to this
+project, you agree that your contribution is licensed to the author and to all
+recipients under the same PolyForm Noncommercial License 1.0.0 as the rest of the
+project, and that you have the right to grant that license. If you do not agree, do
+not submit contributions.
+
+## Third-party components
+
+This software depends on third-party libraries (e.g. AndroidX, Material Components,
+Kotlin runtime) that are distributed under their own licenses (predominantly Apache
+2.0 / MIT). Those licenses apply to those components; this project's PolyForm
+Noncommercial License applies only to this project's own code.
