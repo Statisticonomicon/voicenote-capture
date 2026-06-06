@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Copyright (c) 2026 Notaricus
+// Copyright (c) 2026 Konstantinos Bonikos
 // Licensed under the PolyForm Noncommercial License 1.0.0. See LICENSE.md.
 
 package com.notaricus.voicenote
