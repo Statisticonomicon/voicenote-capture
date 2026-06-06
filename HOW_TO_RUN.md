@@ -115,8 +115,12 @@ each:
    `http://<host>:<port>` (no path).
 3. Import an audio file.
 4. PASS: the note contains the *server's* response (the real transcript from your
-   whisper server). Resilience check: stop the server, import (worker logs a retry,
-   no note), restart the server, the note appears on retry.
+   whisper server). Resilience check: stop the server, import (worker logs a
+   retry, no note, the pending-uploads notification appears in the shade —
+   accept the `POST_NOTIFICATIONS` prompt on Android 13+ if you haven't), turn
+   Wi-Fi off and the notification flips to "waiting for connection". Restart
+   the server, the note appears on retry. To skip the backoff wait, tap
+   **Send pending uploads now** in the Network card.
 
 ### Section C — watch alone
 1. Install `:wear` on the watch (or Wear emulator); grant mic + notification

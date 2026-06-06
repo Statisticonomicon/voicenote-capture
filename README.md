@@ -120,6 +120,17 @@ procedure. In brief:
   with sonification audio attributes (survive DND); screen-off capture
   (recording continues through screen timeout — only user-initiated navigation
   via the crown stops it).
+- **Upload queue with user-visible status**: ongoing "Uploading N voice note(s)
+  / N voice notes waiting" notification (low-importance, no sound); silent
+  per-file alerts for empty transcripts and terminal failures; all
+  phone-local (no bridging to the watch).
+- **Wi-Fi-only upload** option: defers uploads to an unmetered network so
+  voice notes captured on mobile data wait for Wi-Fi automatically.
+- **Send pending uploads now** action: cancels every backed-off / waiting
+  upload and re-enqueues fresh — no leftover exponential delay.
+- **Recordings on phone** controls: opt-in delete-after-upload (vault note
+  stays); export all internal copies to a SAF folder of your choice; delete
+  all internal copies (with confirmation; vault and SAF backups untouched).
 - Optional max-duration auto-stop (off by default).
 - Wear Data Layer file transfer (`ChannelClient`) keyed by a shared capability.
 - Phone: SAF folder selection for raw audio and vault (no broad storage permission).
@@ -156,6 +167,21 @@ procedure. In brief:
   phone before configuring a provider.
 - **Raw-audio folder** (SAF) — independent backup of the captured audio.
 - **Obsidian vault folder** (SAF) — where transcript notes are written.
+- **Upload over Wi-Fi only** — defers `ProcessWorker` to an unmetered network
+  via `NetworkType.UNMETERED`; off by default.
+- **Delete after upload** — `ProcessWorker` removes the on-phone audio copy in
+  `filesDir/incoming/` once the transcript is written. SAF raw backup
+  unaffected. Default off (safer for recoverability).
+- **Send pending uploads now** — cancels every `WORK_TAG`-tagged work item and
+  re-enqueues every still-pending file fresh; uses a tiny SharedPreferences
+  set (`PendingUploads`) to track what's still owed since WorkInfo doesn't
+  expose input data.
+- **Export recordings to folder** — SAF tree picker; copies every
+  `incoming/*.m4a` to the chosen folder. Originals stay; "Delete all
+  recordings" is a separate action.
+- **Delete all recordings** — confirmation dialog (count + size); only
+  touches `filesDir/incoming/`. Vault notes and any SAF backup folder are
+  not affected.
 - **Max-duration auto-stop** (watch) — off by default.
 
 ---
@@ -233,11 +259,19 @@ mobile/                        phone module
   src/main/java/com/notaricus/voicenote/
     SettingsActivity.kt          redesigned settings UI (Option A "Pure Minimal")
                                    + SAF pickers + manual import test
+                                   + Send-pending / Export / Delete-all actions
     Settings.kt                  prefs + SAF tree URIs (provider, endpoint,
-                                   tokens, vault/raw folders, mock-mode)
-    PhoneListenerService.kt      receives audio over the Data Layer
-    ProcessWorker.kt             provider-aware: self-hosted async or
-                                   OpenAI Whisper sync; writes note to vault
+                                   tokens, vault/raw folders, mock-mode,
+                                   wifi-only, delete-after-upload)
+    PhoneListenerService.kt      receives audio; enqueues ProcessWorker with
+                                   NetworkType + LINEAR-30s backoff + WORK_TAG
+    ProcessWorker.kt             provider-aware (self-hosted async or OpenAI
+                                   sync) + empty-transcript soft-fail; writes
+                                   note to vault; optional delete-after-upload
+    UploadStatusNotifier.kt      two phone-local notification channels
+                                   (pending status + failure alerts)
+    PendingUploads.kt            persistent set of paths the user still owes
+                                   to the vault; drives "Send pending now"
   src/main/res/xml/network_security_config.xml   scoped cleartext (self-hosted)
   src/main/res/                  layout, strings, theme, icon,
                                    wear_capabilities.xml, design-token colors,

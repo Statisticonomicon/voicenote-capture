@@ -66,7 +66,12 @@ scope for this repo.
 
 ### Phone app (`:mobile`)
 - **Receive:** `PhoneListenerService` (a `WearableListenerService`) receives the
-  audio over the Data Layer channel.
+  audio over the Data Layer channel, then enqueues a `ProcessWorker` tagged
+  with `UploadStatusNotifier.WORK_TAG`, a `NetworkType` constraint
+  (`UNMETERED` when `Settings.wifiOnly` else `CONNECTED`), and a `LINEAR` 30s
+  backoff. The audio path is added to a small `PendingUploads`
+  SharedPreferences set so the "Send pending uploads now" action can
+  enumerate "what's still owed" (WorkInfo doesn't expose input data).
 - **Persist raw:** saves a copy to the user-chosen raw-audio folder (SAF), before
   any upload, so nothing is lost on endpoint failure.
 - **Process:** `ProcessWorker` (a `CoroutineWorker`) picks a transcription
@@ -79,10 +84,30 @@ scope for this repo.
     the user's own API key. No job_id, no polling.
   Either path's text is then written into the user-chosen Obsidian vault folder
   (SAF). Mock mode short-circuits both providers and writes canned text.
+  Empty response bodies (e.g. whisper returns "" for silence) are treated as
+  a terminal soft-fail: no 0-byte note is written; an alert notification is
+  posted; `Result.success()` so WorkManager stops retrying. If
+  `Settings.deleteAfterUpload` is on, the on-phone audio in `filesDir/incoming/`
+  is deleted after a successful vault write (SAF raw backup is never touched).
+- **User-visible status:** `UploadStatusNotifier` posts to two phone-local
+  notification channels (both `setLocalOnly(true)` to avoid bridging to the
+  watch): an ongoing "Uploading N / N waiting" status row
+  (`IMPORTANCE_LOW`, alerts-once, auto-cancels at empty queue, body
+  differentiates RUNNING from ENQUEUED) and silent per-file alerts for
+  empty transcripts and terminal failures (`IMPORTANCE_LOW` v2 channel after
+  dropping a noisier v1 because Android locks channel importance after
+  creation). `POST_NOTIFICATIONS` is requested at runtime from
+  `SettingsActivity` on API 33+.
 - **Settings UI:** `SettingsActivity` + `Settings` — provider choice, endpoint
   base URL + auth token (self-hosted), OpenAI API key (BYOK), mock mode
   (default OFF for new installs in Phase 2; was default ON during Phase 1
-  emulator dev), raw + vault folders (SAF tree URIs with persisted permission).
+  emulator dev), raw + vault folders (SAF tree URIs with persisted permission),
+  Wi-Fi-only upload, delete-after-upload, plus action rows for "Send pending
+  uploads now" (cancels every `WORK_TAG`-tagged job and re-enqueues every
+  still-pending file fresh from `PendingUploads`, no leftover backoff),
+  "Export recordings to folder…" (SAF copy of every `filesDir/incoming/*.m4a`
+  to a chosen tree), and "Delete all recordings" (confirmation dialog;
+  internal copies only).
   Visual layer redesigned per `design_handoff_companion_app/` ("Pure Minimal" —
   same design language as the watch redesign): pure-black, dark grouped cards
   with hairline borders, single red accent on the radio / save / switch /

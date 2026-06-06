@@ -99,6 +99,40 @@ and the recording screen visible, is what actually stops the session.
 
 ---
 
+## Watching the upload queue
+
+After a recording lands on the phone, a small, silent notification appears in
+the shade — "Uploading 1 voice note" while a worker is running, or "N voice
+notes waiting" when something's blocking (no network, or the Wi-Fi-only switch
+is on and you're on mobile data). It auto-clears when the queue is empty. If
+something failed terminally (server unreachable through retries, or whisper
+returned an empty transcript for a silent / very short clip), you get a
+one-shot, silent alert per file naming the recording. The audio is always
+kept on the phone in either case — see "Recordings on phone" below for what
+to do with it.
+
+## Recordings on phone
+
+By default every audio file the watch sends to the phone is kept forever in
+the app's internal storage (you can't see it from any file manager) plus
+copied to your SAF raw-audio folder if you set one. The Recordings-on-phone
+card lets you change that:
+
+- **Delete after upload** — when on, the internal copy is removed after the
+  transcript reaches your vault. SAF raw backups (if you have a raw folder
+  set) and vault notes are untouched.
+- **Export recordings to folder…** — pick any folder via SAF; the app copies
+  every internal `.m4a` there. Useful before a wipe or to move things off the
+  phone.
+- **Delete all recordings** — confirmation dialog with count + size, then
+  clears the internal copies. Vault notes and SAF backup folder are never
+  touched by this action.
+
+If your uploads ever get stuck in backoff after a transient failure (e.g. the
+server was down during a retry), tap **Send pending uploads now** in the
+Network card — it cancels every waiting / backed-off worker and re-enqueues
+every still-pending file fresh.
+
 ## If something seems off
 
 - **No note appeared.** Check the vault folder is set in settings, and check
@@ -113,6 +147,13 @@ and the recording screen visible, is what actually stops the session.
 - **Crown press didn't stop the recording.** The crown press triggers
   `onUserLeaveHint`. If you swiped away with a gesture instead of using the
   crown, recording continues by design (treated as a transient nav).
+- **No notifications on the phone.** Android 13+ needs `POST_NOTIFICATIONS`
+  granted at runtime; opening the companion app prompts for it. If you
+  dismissed the prompt, grant it via Settings → Apps → VoiceNote Companion →
+  Notifications.
+- **Upload stuck after a transient failure.** WorkManager's retry backoff is
+  30 seconds × attempt; tap **Send pending uploads now** to skip the wait
+  and try again immediately.
 - **Long recording seems stuck.** Large files take time; the phone polls the server
   repeatedly and resumes if interrupted. Give it time before assuming failure.
 
