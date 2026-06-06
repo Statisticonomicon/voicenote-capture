@@ -61,6 +61,27 @@ class Settings(context: Context) {
         get() = prefs.getString(KEY_VAULT, "") ?: ""
         set(v) = prefs.edit().putString(KEY_VAULT, v).apply()
 
+    /**
+     * When true, uploads are deferred to an unmetered (Wi-Fi) connection -
+     * useful for capturing voice notes on mobile data without paying for the
+     * upload until you're back on Wi-Fi. ProcessWorker's NetworkType constraint
+     * is set from this value at enqueue time.
+     */
+    var wifiOnly: Boolean
+        get() = prefs.getBoolean(KEY_WIFI_ONLY, false)
+        set(v) = prefs.edit().putBoolean(KEY_WIFI_ONLY, v).apply()
+
+    /**
+     * When true, [ProcessWorker] removes the on-phone audio copy (in
+     * filesDir/incoming/) after a successful transcript write. Vault notes and
+     * any SAF raw-folder backup are unaffected. Default OFF — the safer choice
+     * for "did we lose anything?" recoverability; users who want the storage
+     * back can opt in.
+     */
+    var deleteAfterUpload: Boolean
+        get() = prefs.getBoolean(KEY_DELETE_AFTER_UPLOAD, false)
+        set(v) = prefs.edit().putBoolean(KEY_DELETE_AFTER_UPLOAD, v).apply()
+
     companion object {
         const val PROVIDER_SELF_HOSTED = "self_hosted"
         const val PROVIDER_OPENAI = "openai"
@@ -72,5 +93,7 @@ class Settings(context: Context) {
         private const val KEY_MOCK = "mock_mode"
         private const val KEY_RAW = "raw_folder_uri"
         private const val KEY_VAULT = "vault_folder_uri"
+        private const val KEY_WIFI_ONLY = "wifi_only"
+        private const val KEY_DELETE_AFTER_UPLOAD = "delete_after_upload"
     }
 }

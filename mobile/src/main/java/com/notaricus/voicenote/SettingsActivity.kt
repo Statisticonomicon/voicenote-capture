@@ -1,7 +1,10 @@
 package com.notaricus.voicenote
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -18,10 +21,13 @@ import android.widget.RadioButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import androidx.appcompat.app.AlertDialog
+import androidx.documentfile.provider.DocumentFile
 import com.google.android.gms.wearable.Wearable
 import com.google.android.material.materialswitch.MaterialSwitch
 import java.io.File
@@ -67,6 +73,17 @@ class SettingsActivity : ComponentActivity() {
     private lateinit var rowMockSwitch: LinearLayout
     private lateinit var mockSwitch: MaterialSwitch
 
+    // Network card.
+    private lateinit var rowWifiOnly: LinearLayout
+    private lateinit var wifiOnlySwitch: MaterialSwitch
+    private lateinit var rowSendPending: LinearLayout
+
+    // Recordings card.
+    private lateinit var rowDeleteAfterUpload: LinearLayout
+    private lateinit var deleteAfterUploadSwitch: MaterialSwitch
+    private lateinit var rowExportRecordings: LinearLayout
+    private lateinit var rowDeleteAll: LinearLayout
+
     // Save button.
     private lateinit var saveButton: Button
 
@@ -75,6 +92,14 @@ class SettingsActivity : ComponentActivity() {
         saveButton.text = getString(R.string.save_button)
         saveButton.setBackgroundResource(R.drawable.bg_save_button)
         saveButton.setTextColor(ContextCompat.getColor(this, R.color.vnc_btn_ink))
+    }
+
+    private val requestNotificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        Log.d(TAG, "POST_NOTIFICATIONS granted=$granted")
+        // Re-post pending status now that the system will let us through.
+        if (granted) UploadStatusNotifier.refreshPending(applicationContext)
     }
 
     private val pickRaw = registerForActivityResult(openTree()) { uri ->
@@ -109,6 +134,33 @@ class SettingsActivity : ComponentActivity() {
         wireSaveButton()
         wireStorageRows()
         wireTestRows()
+        wireNetworkRow()
+        wireRecordingsRows()
+        ensureNotificationPermission()
+    }
+
+    /**
+     * Android 13+ requires POST_NOTIFICATIONS at runtime. Without it the system
+     * silently drops every notification we post (the channels still get created,
+     * the notify() call still returns, but numPostedByApp stays 0 - we saw this
+     * happen on the test phone). Ask for it the first time the user opens
+     * settings; if denied, the upload-status notifications simply won't appear -
+     * the rest of the app is unaffected.
+     */
+    private fun ensureNotificationPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val granted = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.POST_NOTIFICATIONS,
+        ) == PackageManager.PERMISSION_GRANTED
+        if (!granted) requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Cold-start case: queue may already hold entries from before this launch
+        // (e.g. across reboot). Re-post the pending notification so the user sees
+        // them whenever they open the app.
+        UploadStatusNotifier.refreshPending(applicationContext)
     }
 
     private fun bindViews() {
@@ -126,6 +178,13 @@ class SettingsActivity : ComponentActivity() {
         rowRunTest = findViewById(R.id.rowRunTest)
         rowMockSwitch = findViewById(R.id.rowMockSwitch)
         mockSwitch = findViewById(R.id.mock)
+        rowWifiOnly = findViewById(R.id.rowWifiOnly)
+        wifiOnlySwitch = findViewById(R.id.wifiOnly)
+        rowSendPending = findViewById(R.id.rowSendPending)
+        rowDeleteAfterUpload = findViewById(R.id.rowDeleteAfterUpload)
+        deleteAfterUploadSwitch = findViewById(R.id.deleteAfterUpload)
+        rowExportRecordings = findViewById(R.id.rowExportRecordings)
+        rowDeleteAll = findViewById(R.id.rowDeleteAll)
         saveButton = findViewById(R.id.save)
     }
 
@@ -135,6 +194,8 @@ class SettingsActivity : ComponentActivity() {
         token.setText(settings.authToken)
         openAiKey.setText(settings.openAiApiKey)
         mockSwitch.isChecked = settings.mockMode
+        wifiOnlySwitch.isChecked = settings.wifiOnly
+        deleteAfterUploadSwitch.isChecked = settings.deleteAfterUpload
         refreshFolders()
     }
 
@@ -254,6 +315,157 @@ class SettingsActivity : ComponentActivity() {
         mockSwitch.setOnCheckedChangeListener { _, isChecked ->
             settings.mockMode = isChecked
         }
+    }
+
+    // ---- Recordings card --------------------------------------------------
+
+    private val pickExportFolder = registerForActivityResult(openTree()) { uri ->
+        uri?.let {
+            persist(it)
+            exportRecordingsTo(it)
+        }
+    }
+
+    private fun wireRecordingsRows() {
+        rowDeleteAfterUpload.setOnClickListener {
+            deleteAfterUploadSwitch.isChecked = !deleteAfterUploadSwitch.isChecked
+        }
+        deleteAfterUploadSwitch.setOnCheckedChangeListener { _, isChecked ->
+            settings.deleteAfterUpload = isChecked
+        }
+        rowExportRecordings.setOnClickListener {
+            val count = recordingsDir().listFiles { f -> f.isFile && f.extension == "m4a" }?.size ?: 0
+            if (count == 0) {
+                Toast.makeText(this, R.string.export_none, Toast.LENGTH_SHORT).show()
+            } else {
+                pickExportFolder.launch(null)
+            }
+        }
+        rowDeleteAll.setOnClickListener { confirmDeleteAll() }
+    }
+
+    private fun recordingsDir(): File = File(filesDir, "incoming").apply { mkdirs() }
+
+    /**
+     * SAF-copy every .m4a in filesDir/incoming into the user-chosen tree. Does
+     * NOT delete the source — Delete All is a separate action and a separate
+     * choice. Runs on a background thread so a large export doesn't freeze the
+     * UI; the user gets a Toast on completion.
+     */
+    private fun exportRecordingsTo(treeUri: Uri) {
+        val files = recordingsDir().listFiles { f -> f.isFile && f.extension == "m4a" }?.toList().orEmpty()
+        if (files.isEmpty()) {
+            Toast.makeText(this, R.string.export_none, Toast.LENGTH_SHORT).show()
+            return
+        }
+        Toast.makeText(this, getString(R.string.export_started, files.size), Toast.LENGTH_SHORT).show()
+        Thread({
+            var ok = 0
+            try {
+                val tree = DocumentFile.fromTreeUri(this, treeUri)
+                    ?: throw IllegalStateException("Cannot open chosen folder")
+                for (f in files) {
+                    val doc = tree.createFile("audio/mp4", f.name) ?: continue
+                    contentResolver.openOutputStream(doc.uri)?.use { out ->
+                        f.inputStream().use { it.copyTo(out) }
+                    }
+                    ok++
+                }
+                mainHandler.post {
+                    Toast.makeText(this, getString(R.string.export_done, ok), Toast.LENGTH_LONG).show()
+                }
+            } catch (t: Throwable) {
+                Log.e(TAG, "export failed", t)
+                mainHandler.post {
+                    Toast.makeText(this, getString(R.string.export_failed, t.message ?: "?"), Toast.LENGTH_LONG).show()
+                }
+            }
+        }, "vnc-export").start()
+    }
+
+    private fun confirmDeleteAll() {
+        val files = recordingsDir().listFiles { f -> f.isFile && f.extension == "m4a" }?.toList().orEmpty()
+        if (files.isEmpty()) {
+            Toast.makeText(this, R.string.delete_none, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val totalBytes = files.sumOf { it.length() }
+        AlertDialog.Builder(this)
+            .setTitle(R.string.delete_confirm_title)
+            .setMessage(getString(R.string.delete_confirm_body, files.size, humanBytes(totalBytes)))
+            .setNegativeButton(R.string.delete_confirm_negative, null)
+            .setPositiveButton(R.string.delete_confirm_positive) { _, _ ->
+                var deleted = 0
+                for (f in files) if (f.delete()) deleted++
+                Toast.makeText(this, getString(R.string.delete_done, deleted), Toast.LENGTH_SHORT).show()
+            }
+            .show()
+    }
+
+    private fun humanBytes(bytes: Long): String = when {
+        bytes >= 1_000_000 -> "%.1f MB".format(bytes / 1_000_000.0)
+        bytes >= 1_000 -> "%.1f KB".format(bytes / 1_000.0)
+        else -> "$bytes B"
+    }
+
+    // ---- Network card -----------------------------------------------------
+
+    private fun wireNetworkRow() {
+        rowWifiOnly.setOnClickListener {
+            wifiOnlySwitch.isChecked = !wifiOnlySwitch.isChecked
+        }
+        // Persist the toggle immediately - users expect a switch to take effect
+        // without also having to hit Save. The next enqueue picks up the new
+        // NetworkType constraint; in-flight work keeps the constraint it was
+        // enqueued with (acceptable; they'll complete and the new flow uses the
+        // new setting).
+        wifiOnlySwitch.setOnCheckedChangeListener { _, isChecked ->
+            settings.wifiOnly = isChecked
+        }
+        rowSendPending.setOnClickListener { sendPendingUploadsNow() }
+    }
+
+    /**
+     * Cancel any backed-off / waiting upload work and re-enqueue fresh requests
+     * for every path the user still expects to land in the vault. The fresh
+     * requests start at attempt 0 - no leftover exponential delay.
+     *
+     * Files that no longer exist on disk are skipped and removed from the
+     * pending set (defensive; shouldn't happen but cheap to handle).
+     */
+    private fun sendPendingUploadsNow() {
+        val pending = PendingUploads.all(applicationContext)
+            .map { File(it) }
+            .filter { it.exists() }
+        if (pending.isEmpty()) {
+            // Defensive cleanup of any stale entries that pointed at deleted files.
+            for (p in PendingUploads.all(applicationContext)) {
+                if (!File(p).exists()) PendingUploads.remove(applicationContext, p)
+            }
+            Toast.makeText(this, R.string.send_pending_none, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val wm = androidx.work.WorkManager.getInstance(applicationContext)
+        wm.cancelAllWorkByTag(UploadStatusNotifier.WORK_TAG)
+        val networkType = if (settings.wifiOnly)
+            androidx.work.NetworkType.UNMETERED else androidx.work.NetworkType.CONNECTED
+        val constraints = androidx.work.Constraints.Builder()
+            .setRequiredNetworkType(networkType).build()
+        for (file in pending) {
+            val req = androidx.work.OneTimeWorkRequestBuilder<ProcessWorker>()
+                .setInputData(androidx.work.workDataOf(ProcessWorker.KEY_FILE to file.absolutePath))
+                .setConstraints(constraints)
+                .setBackoffCriteria(
+                    androidx.work.BackoffPolicy.LINEAR, 30, java.util.concurrent.TimeUnit.SECONDS,
+                )
+                .addTag(UploadStatusNotifier.WORK_TAG)
+                .build()
+            wm.enqueue(req)
+        }
+        UploadStatusNotifier.refreshPending(applicationContext)
+        Toast.makeText(
+            this, getString(R.string.send_pending_done, pending.size), Toast.LENGTH_SHORT,
+        ).show()
     }
 
     /** Copy a chosen audio file into local storage and run it through the same worker the watch path uses. */

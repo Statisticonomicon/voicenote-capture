@@ -34,4 +34,44 @@
 
     <string name="test_enqueued">Test file enqueued</string>
     <string name="test_failed">Test import failed</string>
+
+    <string name="network_section">Network</string>
+    <string name="wifi_only_title">Upload over Wi-Fi only</string>
+    <string name="wifi_only_subtitle">Defer uploads when on mobile data</string>
+    <string name="send_pending_now_title">Send pending uploads now</string>
+    <string name="send_pending_none">No pending uploads.</string>
+    <string name="send_pending_done">Retrying %1$d upload(s).</string>
+
+    <string name="notif_channel_pending">Pending uploads</string>
+    <string name="notif_channel_pending_desc">Ongoing status while voice notes are waiting to upload.</string>
+    <string name="notif_channel_alerts">Upload alerts</string>
+    <string name="notif_channel_alerts_desc">Empty transcripts and failed uploads.</string>
+
+    <string name="notif_pending_body_uploading">Sending to your transcription provider…</string>
+    <string name="notif_pending_body_waiting">Waiting for connection.</string>
+    <string name="notif_pending_body_mixed">%1$d waiting for connection.</string>
+
+    <string name="notif_empty_title">Empty transcript</string>
+    <string name="notif_empty_body">No speech detected in %1$s. The audio is kept locally; you can re-import or delete it.</string>
+
+    <string name="notif_failed_title">Upload failed</string>
+    <string name="notif_failed_body">Could not upload %1$s after several retries. The audio is kept locally.</string>
+
+    <string name="recordings_section">Recordings on phone</string>
+    <string name="delete_after_upload_title">Delete after upload</string>
+    <string name="delete_after_upload_subtitle">Remove the phone copy once the transcript is in your vault.</string>
+    <string name="export_recordings_title">Export recordings to folder…</string>
+    <string name="delete_all_recordings_title">Delete all recordings</string>
+
+    <string name="export_started">Exporting %1$d recordings…</string>
+    <string name="export_done">Exported %1$d recordings.</string>
+    <string name="export_none">No recordings on phone to export.</string>
+    <string name="export_failed">Export failed: %1$s</string>
+
+    <string name="delete_confirm_title">Delete all recordings?</string>
+    <string name="delete_confirm_body">This removes %1$d recordings (%2$s) from this phone. Your vault notes and any SAF backups are not affected.</string>
+    <string name="delete_confirm_positive">Delete</string>
+    <string name="delete_confirm_negative">Cancel</string>
+    <string name="delete_done">Deleted %1$d recordings.</string>
+    <string name="delete_none">No recordings on phone to delete.</string>
 </resources>

@@ -2,12 +2,16 @@ package com.notaricus.voicenote
 
 import android.util.Log
 import androidx.documentfile.provider.DocumentFile
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.google.android.gms.wearable.ChannelClient
 import com.google.android.gms.wearable.WearableListenerService
 import java.io.File
+import java.util.concurrent.TimeUnit
 
 /**
  * Receives audio files from the watch over the Data Layer (Phase 1 prototype).
@@ -53,9 +57,23 @@ class PhoneListenerService : WearableListenerService() {
     }
 
     private fun enqueueProcessing(file: File) {
+        val settings = Settings(this)
+        // CONNECTED by default; UNMETERED (Wi-Fi only) when the user has opted to
+        // defer uploads off mobile data. Either way the worker sits in the queue
+        // until the constraint is met - no failed-attempt burn while offline.
+        val networkType = if (settings.wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED
+        val constraints = Constraints.Builder().setRequiredNetworkType(networkType).build()
         val req = OneTimeWorkRequestBuilder<ProcessWorker>()
             .setInputData(workDataOf(ProcessWorker.KEY_FILE to file.absolutePath))
+            .setConstraints(constraints)
+            // Linear 30s backoff (default is exponential 30s → 60s → 120s → 240s
+            // → 480s, which felt punishing when the user just reconnected). With
+            // MAX_RUN_ATTEMPTS=5 the worst-case total is ~2 minutes.
+            .setBackoffCriteria(BackoffPolicy.LINEAR, 30, TimeUnit.SECONDS)
+            .addTag(UploadStatusNotifier.WORK_TAG)
             .build()
+        PendingUploads.add(applicationContext, file.absolutePath)
         WorkManager.getInstance(this).enqueue(req)
+        UploadStatusNotifier.refreshPending(applicationContext)
     }
 }

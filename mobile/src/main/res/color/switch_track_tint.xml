@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    ColorStateList for MaterialSwitch.trackTint:
+      checked   -> app red (#FF453A)
+      otherwise -> dark grey (#2A2A2E)
+    Drives the track-only colour without M3's default theme tints leaking in.
+-->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true" android:color="@color/vnc_red" />
+    <item android:color="@color/vnc_switch_off_track" />
+</selector>

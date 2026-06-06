@@ -94,6 +94,9 @@ class ProcessWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
         if (runAttemptCount >= MAX_RUN_ATTEMPTS) {
             Log.e(TAG, "Giving up on $path after $runAttemptCount attempts (cap $MAX_RUN_ATTEMPTS)")
             clearJobId(path)
+            PendingUploads.remove(applicationContext, path)
+            UploadStatusNotifier.notifyTerminalFailure(applicationContext, File(path).name)
+            UploadStatusNotifier.refreshPending(applicationContext, id)
             return@withContext Result.failure()
         }
 
@@ -122,8 +125,25 @@ class ProcessWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
                         ?: return@withContext Result.retry()
                 }
             }
+            // Empty body from the provider (e.g. whisper transcribed silence): don't
+            // write a 0-byte note. Surface it as a soft failure so the user knows the
+            // recording was processed but had nothing to say, and stop retrying.
+            if (text.isBlank()) {
+                Log.w(TAG, "Empty transcript for ${file.name}; skipping vault write")
+                UploadStatusNotifier.notifyEmptyTranscript(applicationContext, file.name)
+                clearJobId(path)
+                PendingUploads.remove(applicationContext, path)
+                UploadStatusNotifier.refreshPending(applicationContext, id)
+                return@withContext Result.success()
+            }
             writeToVault(settings.vaultFolderUri, file.nameWithoutExtension, text)
             Log.d(TAG, "Processed ${file.name} -> vault")
+            if (settings.deleteAfterUpload && file.exists()) {
+                val deleted = file.delete()
+                Log.d(TAG, "deleteAfterUpload: ${file.name} deleted=$deleted")
+            }
+            PendingUploads.remove(applicationContext, path)
+            UploadStatusNotifier.refreshPending(applicationContext, id)
             Result.success()
         } catch (e: EndpointErrorException) {
             // Server reported a processing error for this job. Drop the job_id so the
@@ -140,6 +160,9 @@ class ProcessWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ct
             // avoid a hot retry loop; clear any stale job_id.
             Log.e(TAG, "Unrecoverable failure for ${file.name}", t)
             clearJobId(path)
+            PendingUploads.remove(applicationContext, path)
+            UploadStatusNotifier.notifyTerminalFailure(applicationContext, file.name)
+            UploadStatusNotifier.refreshPending(applicationContext, id)
             Result.failure()
         }
     }

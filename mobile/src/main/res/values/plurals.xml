@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <plurals name="notif_pending_uploading_title">
+        <item quantity="one">Uploading 1 voice note</item>
+        <item quantity="other">Uploading %d voice notes</item>
+    </plurals>
+    <plurals name="notif_pending_waiting_title">
+        <item quantity="one">1 voice note waiting</item>
+        <item quantity="other">%d voice notes waiting</item>
+    </plurals>
+</resources>
