@@ -6,9 +6,10 @@ subscription.
 
 **Status:** Phase 1 prototype, with Section D (watch→phone link), the watch-face
 complication launch shortcut, the always-start / crown-stop activation model,
-and real haptics now all verified on real hardware. The remaining Phase 2 item
-is real-world battery measurement; direct hardware-button binding is parked
-until the PW4 upgrade.
+real haptics, and real-world battery behaviour all verified on real hardware
+(`PHASE2_PLAN.md` item 4 closed 2026-06-06: 0.638 mAh / 11 sessions on the
+watch, well below the noise floor). Direct hardware-button binding remains
+parked until the PW4 upgrade; no other Phase 2 work is open.
 
 ---
 

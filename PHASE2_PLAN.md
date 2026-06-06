@@ -76,9 +76,28 @@ support grounds.
    change — only the watch's button-mapping setting. The complication stays as the
    universal fallback (and remains the only path on the original Pixel Watch).
 
-4. **Battery behaviour.** Measure real drain during and around recording; tune the
-   optional max-duration auto-stop default if needed. *(Still open — needs a
-   long-form recording session and battery telemetry.)*
+4. **Battery behaviour.** *(2026-06-06: DONE — measured on real hardware; well
+   below the noise floor.)* Code audit (commit `12ccfe9` log + matching grep
+   for `PeriodicWork|AlarmManager|JobScheduler|WakeLock|BroadcastReceiver`)
+   found zero between-session work; all services `stopSelf()` after handoff.
+   A 24-hour `dumpsys batterystats com.notaricus.voicenote` diff with reset-
+   to-snapshot delta on both devices confirmed it on the wire:
+   - **Watch (Pixel Watch, ~294 mAh battery):** 0.638 mAh attributed across
+     11 RecordingService sessions over ~4 h on-battery, of which 0.585 mAh
+     was *cached* (process kept warm), 0.0249 mAh foreground, 0.00199 mAh
+     mic FGS. Audio capture itself registered as 0 mAh — the mic HAL
+     doesn't draw measurably through batterystats. Amortised: ~0.058 mAh /
+     recording (~0.02 % of battery per session); 100 recordings/day
+     ≈ 2 %, inside noise. The app ranks ~5th-of-many on the watch in this
+     window (top consumer 2.08 mAh).
+   - **Phone (Galaxy M33 5G, ~5000 mAh battery):** 15.2 mAh over ~4 h,
+     dominated by 8.99 mAh of foreground time while debugging Settings
+     (heavy use) plus 4.44 mAh background for WorkManager upload bursts;
+     0.00688 mAh FGS, 1.75 mAh cached. Real-world post-debug load will be
+     just the bg/cached rows — vanishingly small.
+   - The `MAX_DURATION_MS = 0` (auto-stop disabled by default) in
+     `RecordingService` stands — there is no measurable need to cap session
+     length on the basis of battery, only on UX grounds.
 
 5. **Haptic feel.** *(2026-06-05: DONE — perceptible on real hardware.)* The
    initial 60ms/40-60-40ms raw waveforms were inaudible on the Pixel Watch
