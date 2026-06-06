@@ -326,6 +326,27 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- ====================== Save settings ======================
+             Placed directly after the provider radio + text-field cards
+             above, because those are the only inputs the button actually
+             persists. Every other control on this screen (folder pickers,
+             switches) saves itself the moment you touch it.
+        -->
+        <Button
+            android:id="@+id/save"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="22dp"
+            android:padding="16dp"
+            android:background="@drawable/bg_save_button"
+            android:text="@string/save_button"
+            android:textColor="@color/vnc_btn_ink"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.01"
+            android:textAllCaps="false"
+            android:stateListAnimator="@animator/press_scale" />
+
         <!-- ============================ Storage ============================ -->
         <TextView
             android:layout_width="wrap_content"
@@ -729,22 +750,6 @@
                     android:src="@drawable/ic_chevron_right" />
             </LinearLayout>
         </LinearLayout>
-
-        <!-- ====================== Save settings ====================== -->
-        <Button
-            android:id="@+id/save"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="22dp"
-            android:padding="16dp"
-            android:background="@drawable/bg_save_button"
-            android:text="@string/save_button"
-            android:textColor="@color/vnc_btn_ink"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:letterSpacing="0.01"
-            android:textAllCaps="false"
-            android:stateListAnimator="@animator/press_scale" />
 
         <!-- ============================= Test ============================= -->
         <TextView
