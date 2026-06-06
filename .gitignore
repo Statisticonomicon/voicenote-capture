@@ -23,6 +23,16 @@
 # device serials, how-to-restore-after-clone notes). Keep local.
 /MY_LOCAL_VALUES.md
 
+# Maintainer-local reference materials, moved into the project tree on
+# 2026-06-06 from a sibling working directory. None of these belong in the
+# public source distribution: the icon is already baked into mipmaps, the
+# design handoffs are reference briefs from another tool, and the
+# publishing kit folder holds the (gitignored) personal-values backup.
+/app_icon.png
+/design_handoff_companion_app/
+/design_handoff_recording_screen/
+/Licensing and Publishing on GitHub/
+
 # Secrets and signing material — never commit.
 *.keystore
 *.jks
