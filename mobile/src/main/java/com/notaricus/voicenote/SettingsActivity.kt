@@ -277,9 +277,9 @@ class SettingsActivity : ComponentActivity() {
     /**
      * Friendly SAF-tree-URI display: `…/<parent>/<leaf>`, leaf coloured red-soft.
      * Example input:
-     *   content://.../tree/65C2-A957%3AMegaSyncFiles%2FHypomnema%2FVoiceNotes
-     * Decoded path-after-colon: `MegaSyncFiles/Hypomnema/VoiceNotes`
-     * Output (Spannable): `…/Hypomnema/VoiceNotes` with `VoiceNotes` in vnc_red_soft.
+     *   content://.../tree/primary%3ADocuments%2FMyVault%2FVoiceNotes
+     * Decoded path-after-colon: `Documents/MyVault/VoiceNotes`
+     * Output (Spannable): `…/MyVault/VoiceNotes` with `VoiceNotes` in vnc_red_soft.
      *
      * Empty URI -> the bare placeholder string.
      */

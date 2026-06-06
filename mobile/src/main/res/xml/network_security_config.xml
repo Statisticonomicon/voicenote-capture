@@ -7,12 +7,14 @@
   denied, HTTPS required. Tailscale is the security boundary for this host (see
   ARCHITECTURE.md), so plain HTTP to it is acceptable here.
 
-  NOTE: this hostname is compiled into the APK. If the server's MagicDNS name
-  changes, update it here and rebuild; the runtime endpoint URL in Settings must
-  use this same host for cleartext to be allowed.
+  NOTE: this hostname is compiled into the APK. The value below is a PLACEHOLDER
+  for the public source tree — replace it with your own Tailscale MagicDNS host
+  before building, and keep your runtime endpoint URL in Settings on that same
+  host so cleartext is allowed only for the one node you trust. If you don't
+  use Tailscale, remove this whole config and stay on HTTPS.
 -->
 <network-security-config>
     <domain-config cleartextTrafficPermitted="true">
-        <domain includeSubdomains="false">tailscale-node.tail05233a.ts.net</domain>
+        <domain includeSubdomains="false">tailscale-node.your-tailnet.ts.net</domain>
     </domain-config>
 </network-security-config>

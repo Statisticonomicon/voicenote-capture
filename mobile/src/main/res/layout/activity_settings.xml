@@ -413,7 +413,7 @@
                         android:paddingTop="2dp"
                         android:singleLine="true"
                         android:ellipsize="end"
-                        tools:text="…/Hypomnema/VoiceNotes" />
+                        tools:text="…/MyVault/VoiceNotes" />
                 </LinearLayout>
 
                 <ImageView
@@ -473,7 +473,7 @@
                         android:paddingTop="2dp"
                         android:singleLine="true"
                         android:ellipsize="end"
-                        tools:text="…/Hypomnema/VoiceNotes" />
+                        tools:text="…/MyVault/VoiceNotes" />
                 </LinearLayout>
 
                 <ImageView

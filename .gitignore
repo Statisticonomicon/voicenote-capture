@@ -14,3 +14,19 @@
 /VoiceNoteCapture.zip
 /files.zip
 /Phase05LaunchToggle/
+
+# Local dev snapshot (contains real Tailscale hostname / device serials /
+# personal vault paths — keep local, never publish).
+/state.txt
+
+# Secrets and signing material — never commit.
+*.keystore
+*.jks
+*.p12
+*.pem
+*.pfx
+*.env
+*.env.*
+google-services.json
+.secrets/
+secrets.properties
